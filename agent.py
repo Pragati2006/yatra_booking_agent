@@ -42,14 +42,18 @@ MAX_OPTIONS = 3  # how many ranked combinations to show for review
 #    fares). Trains (into Katra's own SVDK station) and buses (direct to
 #    Katra) don't need this extra leg.
 #  - From Katra, Normal/VIP Darshan requires the ~12-13 km trek, commonly
-#    5-9 hours one-way plus queueing for an average pilgrim. Helicopter
-#    Darshan cuts this to a short flight plus walk and queueing, roughly
-#    1.5-2 hrs door-to-darshan from Katra.
+#    5-9 hours one-way for an average pilgrim - but that's pure walking
+#    time. A realistic buffer also needs to account for arrival fatigue,
+#    food/rest breaks, and queueing at Bhawan, so this is set toward the
+#    higher end (10h) rather than the optimistic low end, to avoid
+#    proposing combinations that are only technically possible on paper.
+#    Helicopter Darshan cuts the trek to a short flight plus walk, but
+#    still needs check-in, security, and queueing time.
 JAMMU_TO_KATRA_BUFFER_HOURS = 2
 DARSHAN_PREP_BUFFER_HOURS = {
-    "Helicopter Darshan": 2,
-    "VIP Darshan": 8,
-    "Normal Darshan": 8,
+    "Helicopter Darshan": 3,
+    "VIP Darshan": 10,
+    "Normal Darshan": 10,
 }
 
 

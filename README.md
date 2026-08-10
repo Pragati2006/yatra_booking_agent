@@ -1,75 +1,75 @@
 # Vaishno Devi Yatra Booking Agent (Prototype)
 
-An AI agent prototype that plans and books Vaishno Devi yatra slots + travel
-(flight, train, or bus) based on natural-language user requests. Built with
-Streamlit.
+A conversational, multi-agent AI prototype that plans and books Vaishno Devi
+yatra slots + travel (flight, train, or bus) through a ChatGPT-style chat
+interface. Built with Streamlit.
 
 > **Important:** This is a prototype for demo purposes. Yatra darshan
 > **prices** are real, researched figures (see Data Sources below); flight,
-> train, and bus prices are realistic but synthetic. **Seat/slot
+> train, bus, and hotel prices are realistic but synthetic. **Seat/slot/room
 > availability for all of these is simulated** — no public dataset or API
-> anywhere publishes real-time yatra slot, airline, rail, or bus seat
-> inventory. **Login and payment are also simulated** — see the sections
-> below.
+> anywhere publishes real-time yatra slot, airline, rail, bus, or hotel
+> inventory. **Payment is also simulated**. There is **no login/sign-up** —
+> each browser session gets a temporary guest identity purely so booking
+> history has something to group by; nothing personal is required or stored
+> long-term.
+
+## Architecture: multi-agent design
+
+Rather than one monolithic script, the system is split into agents with
+distinct responsibilities, orchestrated by a coordinator:
+
+```
+agents/
+├── coordinator.py          # orchestrates every other agent for the conversation
+├── conversation_agent.py   # multilingual understanding + devotional reply phrasing
+├── itinerary_agent.py      # builds the day-wise pilgrimage itinerary
+└── content_agent.py        # historical background + video links per place
+```
+
+Transport, darshan, and hotel search/ranking logic lives in the existing,
+independently-tested `agent.py` (real-arrival-time-aware ranking - see
+"Timing safety" below) and `db.py` at the project root; the coordinator
+calls into those rather than duplicating that logic inside the agents
+package. `app.py` only ever talks to `coordinator` - it doesn't call any
+other agent directly, keeping the orchestration logic in one place.
 
 ## What's new in this version
 
-- **Multi-modal travel** — the agent now searches flights, trains, *and*
-  buses, not just flights. Say "by train" or "by bus" for a specific mode,
-  or leave it unspecified and the agent shows one option per mode so you
-  can compare.
-- **Hotel stay in Katra (Step 3)** — after picking a travel + darshan
-  option, choose to add a hotel stay (Budget/Mid-Range/Premium, real
-  researched price tiers) or skip it. Room availability decrements per
-  booking, same as transport seats.
-- **Weather for your darshan date (Step 3)** — shown right alongside the
-  taxi/hotel info, since the darshan date is already fixed at that point.
-  Dates within roughly the next 15 days show a live short-range forecast
-  (via [Open-Meteo](https://open-meteo.com), a free API needing no key);
-  dates further out show a real, researched seasonal average for Katra
-  instead, since no forecast API is meaningfully accurate that far ahead.
-  Falls back to the seasonal average automatically if the live call fails
-  for any reason (offline, rate-limited, etc) — the feature never breaks
-  the booking flow.
-- **Sightseeing after darshan (Step 4)** — pick from the same curated
-  Explore Katra places, filtered by category, and check off the ones
-  you plan to visit. Informational only (no price impact), but your
-  picks are carried through to the confirmation, payment summary, and
-  booking history — or skip in one click.
-- **Yatra Essentials (Explore Katra tab)** — real, cross-checked pilgrim
-  info: Aarti timings (darshan pauses 6:20-8:00 AM and 7:20-8:30 PM),
-  free/mandatory registration steps, the three route options to Bhawan
-  (trek, Tarakote Marg, helicopter), a packing & prohibited-items list,
-  free facilities (langar, medical centers), and the official Shrine
-  Board helpline.
-- **Weather-based packing tip (Step 3)** — a one-line, season-specific
-  packing suggestion shown right next to the weather card.
-- **Rough trip budget estimate (Step 5)** — a general planning estimate
-  for food/local taxis/prasad, clearly separated from the actual
-  bookable total.
-- **Hotel ratings** — a star rating shown per hotel, kept consistent per
-  property (clearly labeled as sample data, not real reviews — no public
-  review data exists for these generic property names).
-- **Jammu → Katra taxi guidance** — shown both during the booking flow
-  (Step 3) and as a standalone section in the Explore Katra tab, with
-  real researched fare ranges by vehicle type. Each "Explore Katra" place
-  also shows a local-travel note (auto/taxi guidance to reach it).
-- **Explore Katra tab** — a second tab with real, researched places to see
-  around Katra, the trek route, and Jammu city (temples, viewpoints, hill
-  stations), filterable by category. Informational only, not bookable.
-- **Login page** — sign in, sign up, or continue as a guest. Demo account:
-  `demo` / `demo123`.
-- **Multi-option review step** — the agent surfaces up to 3 travel + yatra-
-  slot combinations, each expandable for full details, with a clickable
-  "Select this option" button.
-- **A real 5-step flow** — *Tell us your trip → Review options → Add a
-  stay (+weather) → Sightseeing → Pay & confirm* — with a working
-  back/cancel path at each step.
-- **Mock payment gateway** — a card/UPI checkout screen sits between
-  choosing a plan (hotel + sightseeing) and getting a confirmation ID.
+- **Chat-first interface, no forms** — the old dropdown/date-picker search
+  form is gone. You just type your trip in plain language, in whatever
+  language you're comfortable with, and the agent takes it from there.
+- **Multilingual conversational AI** — if an `ANTHROPIC_API_KEY` is
+  configured (see below), Claude understands and can respond appropriately
+  regardless of the language you write in (Hindi, Hinglish, English, etc.),
+  with a respectful devotional tone ("🙏 Jai Mata Di") woven in naturally.
+  Without a key, the app still works fully via rule-based English parsing —
+  this is disclosed in the UI, not hidden.
+- **No sign-up required** — removed the login/account system entirely.
+  Each session gets a lightweight guest ID automatically.
+- **Day-wise itinerary (new Step 5)** — once you've picked transport,
+  darshan, an optional hotel, and optional sightseeing, the ItineraryAgent
+  assembles a real day-by-day plan (arrival, rest days if needed, darshan
+  day, sightseeing day, departure) before you pay.
+- **Historical background + video links for every place** — both in the
+  sightseeing step and the Explore Katra tab, each place now shows real,
+  researched historical/mythological background and a "watch videos" link.
+  Video links are constructed YouTube *search* URLs, not hardcoded video
+  IDs, so they always resolve to real, current results rather than risking
+  a broken or deleted specific video.
+- **Multi-modal travel** — flights, trains, *and* buses, ranked together.
+- **Hotel stay in Katra** — Budget/Mid-Range/Premium, real researched price
+  tiers, room availability decrements per booking.
+- **Jammu → Katra taxi guidance** — real researched fare ranges, shown
+  both mid-booking and in the Explore Katra tab.
+- **Timing safety** — transport + darshan combinations are only ever shown
+  if they're actually reachable in time (real arrival time, a Jammu-Katra
+  taxi buffer for flights, and a realistic trek/heli-and-queue buffer for
+  the darshan category) - see `agent.py`'s `DARSHAN_PREP_BUFFER_HOURS`.
+- **Mock payment gateway** — a card/UPI checkout screen before confirmation.
   No real transaction ever occurs.
-- **Booking history is per-account**, filtered to whoever is logged in,
-  and now shows the hotel stay and sightseeing picks if added.
+- **A real 6-step flow** — *Tell us your trip (chat) → Review options → Add
+  a stay → Sightseeing → Itinerary → Pay & confirm*.
 
 ## Data Sources
 
@@ -86,13 +86,12 @@ live API, not random on-the-fly generation.
 | Flight/train/bus *prices, schedules* | Realistic structure, synthetic exact figures | Flight fares calibrated against real Kaggle India flight-price datasets; train fares follow real IRCTC Sleeper/3AC/2AC tiering; none of this is live pricing |
 | Jammu ↔ Katra taxi fares (₹1,300–3,800 by vehicle type) | **Real, researched** | Cross-checked across multiple cab-booking sites (Jagat Travels, CabBazar, Savaari, EaseMyTrip Cabs); ~44-55 km, ~1-1.5 hrs |
 | Katra hotel price tiers (Budget ₹600-1,500 / Mid-Range ₹1,800-4,000 / Premium ₹5,000-12,000 per night) | **Real, researched price ranges; property names are generic/fictional** | Cross-checked across multiple hotel-booking sites; no real per-hotel room-inventory data exists publicly, so specific property names and room availability are simulated |
-| Weather (near-term dates) | **Real, live** | [Open-Meteo](https://open-meteo.com) free forecast API, no key required |
-| Weather (dates beyond ~15 days out) | **Real seasonal averages, not a forecast** | General, well-documented Katra/Jammu regional climate patterns (monsoon timing, summer/winter ranges) |
-| Aarti timings, registration rules, route options, helpline number | **Real, cross-checked** | Official Shrine Board site (maavaishnodevi.org) and its public notices, cross-checked with independent pilgrim-guide sources |
-| Hotel star ratings | **Sample/illustrative, not real reviews** | No public review data exists for these generic property names — ratings are fixed per property so they're at least consistent, not randomized every visit |
+| Historical/mythological background for trek-route sites (Bhairavnath, Ardhkuwari, Charan Paduka) and Jammu heritage sites (Raghunath Temple, Bahu Fort, Amar Mahal) | **Real, cross-checked across multiple independent sources** | Legend details, construction dates, and founders verified across multiple pilgrimage-history and heritage sources |
+| Historical background for Baba Dhansar, Jhajjar Kotli, Patnitop | **Honestly labeled as not having a widely documented origin story**, rather than an invented legend | — |
+| Video links per place | **Real, but a search page, not a specific video** | Constructed YouTube search URLs, so they always resolve to current real results instead of a hardcoded video ID that could later break |
 | All seat/slot/room availability | **Simulated** | Not public anywhere — gated behind each system's own booking backend |
 | Explore Katra tourist info + local-travel notes | **Real places, general sourcing; travel cost notes are estimates** | Compiled from general pilgrimage-tourism sources; distances and local taxi/auto fares are approximate |
-| User accounts | **Demo only** | Seeded `demo`/`guest` accounts plus local sign-ups; SHA-256 hashed, no salt — not production auth |
+| Session identity | **No accounts** | Each browser session gets a temporary auto-generated guest ID; nothing personal is collected |
 
 A real production version of this agent would need an official
 data-sharing agreement with the Shrine Board, IRCTC, an airline/GDS
@@ -116,28 +115,43 @@ live inventory.
 
 Optional, via a free Airtable base — see `airtable_store.py`. Setup is
 unchanged from before **except the `bookings` table's columns**, which
-now need to match the new transport-mode-generic, hotel- and
-sightseeing-inclusive schema. If you already set up Airtable, update your
-`bookings` table's fields to exactly:
+now need to match the new transport-mode-generic, hotel-inclusive schema.
+If you already set up Airtable, update your `bookings` table's fields to
+exactly:
 
 ```
 booking_id, user_name, pax_count, yatra_slot_id, category, slot_date,
 slot_time, transport_mode, transport_no, transport_operator, origin,
 destination, transport_date, departure_time, transport_price,
 yatra_price, hotel_id, hotel_name, hotel_category, hotel_price_per_night,
-hotel_nights, hotel_total, sightseeing_places, total_price, status,
-created_at
+hotel_nights, hotel_total, total_price, status, created_at
 ```
 
-(All "Single line text" is fine.) The `users` table is unchanged. If
-you haven't set up Airtable yet, everything still works fine against
-local CSV files — this section is optional.
+(All "Single line text" is fine.) There's no `users` table anymore, since
+login/sign-up has been removed. If you haven't set up Airtable yet,
+everything still works fine against local CSV files — this section is
+optional.
 
-## Login
+## Conversational AI (multilingual mode)
 
-`auth.py` gates the whole app behind a login screen: Log in, Sign up, or
-Guest access. Demo-grade only — SHA-256 hashed, no salt, no password
-reset.
+By default (no API key configured), the app understands trip requests via
+rule-based parsing — reliable, but English-only and keyword-based rather
+than truly understanding free-form phrasing.
+
+To enable full multilingual understanding (Hindi, Hinglish, English, or
+anything else a pilgrim writes in) and warmer, more natural devotional
+phrasing in replies, provide an Anthropic API key:
+
+- **Locally:** `export ANTHROPIC_API_KEY=sk-ant-...` before running
+  `streamlit run app.py`
+- **On Streamlit Cloud:** add it under App settings → Secrets:
+  ```toml
+  ANTHROPIC_API_KEY = "sk-ant-..."
+  ```
+
+Without a key, the app is fully functional — `app.py` shows a small caption
+disclosing which mode is active, rather than silently claiming multilingual
+support it isn't actually providing.
 
 ## Payment
 
@@ -149,17 +163,21 @@ do not enter a real card number.
 
 ```
 yatra-agent/
-├── app.py                  # Streamlit UI: login gate, tabs, 3-step booking flow
-├── auth.py                  # Login / sign-up / guest access
+├── app.py                  # Streamlit UI: chat-first, tabs, 6-step booking flow
+├── agents/
+│   ├── coordinator.py         # orchestrates all agents for the conversation
+│   ├── conversation_agent.py   # multilingual NLU + devotional reply phrasing
+│   ├── itinerary_agent.py       # builds the day-wise itinerary
+│   └── content_agent.py          # historical background + video links
+├── agent.py                  # Transport/darshan search + real-timing-safe ranking (tested core)
 ├── payment.py                 # Mock payment gateway (card/UPI checkout)
-├── airtable_store.py            # Optional: persist users/bookings to Airtable
-├── agent.py                       # Agent reasoning (rule-based request parsing + ranking)
-├── db.py                            # CSV-backed data access layer (multi-modal transport + users)
-├── explore_data.py                    # Curated tourist info for the Explore Katra tab
-├── weather.py                            # Live forecast (Open-Meteo) + seasonal-average fallback
-├── yatra_info.py                            # Real pilgrim essentials: aarti, registration, routes, helpline
-├── build_dataset.py                     # Builds the master CSV datasets (run once)
-├── data_gen.py                            # Compatibility shim, bootstraps live data on first run
+├── airtable_store.py            # Optional: persist bookings to Airtable
+├── db.py                          # CSV-backed data access layer (multi-modal transport + hotels)
+├── explore_data.py                  # Curated places: history, video links, taxi/local-travel info
+├── yatra_info.py                      # Aarti timings, registration, routes, packing, helpline
+├── weather.py                           # Live forecast (Open-Meteo) + seasonal-average fallback
+├── build_dataset.py                       # Builds the master CSV datasets (run once)
+├── data_gen.py                              # Compatibility shim, bootstraps live data on first run
 ├── requirements.txt
 ├── .gitignore
 └── data/
@@ -168,9 +186,13 @@ yatra-agent/
     ├── trains_dataset.csv          # master dataset (committed)
     ├── buses_dataset.csv            # master dataset (committed)
     ├── hotels_dataset.csv             # master dataset (committed)
-    ├── users_dataset.csv               # seed demo accounts (committed)
-    └── *_live.csv, bookings.csv          # generated on first run (gitignored)
+    └── *_live.csv, bookings.csv         # generated on first run (gitignored)
 ```
+
+Note: `auth.py` still exists in the repo from an earlier version but is no
+longer called from `app.py` - login/sign-up has been removed per the "no
+sign-up" requirement. It's kept only in case a future version wants to
+reintroduce optional accounts.
 
 ## Run locally
 
@@ -179,16 +201,24 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Live data files are generated automatically on first run. Log in with
-`demo` / `demo123`, sign up fresh, or continue as a guest.
+Live data files are generated automatically on first run. No login needed —
+just start typing your trip in the chat box.
+
+### Optional: enable LLM-powered multilingual mode
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+streamlit run app.py
+```
+See "Conversational AI (multilingual mode)" above for details.
 
 ## Deploy for free (Streamlit Community Cloud)
 
 1. Push this repo to GitHub
 2. Go to [share.streamlit.io](https://share.streamlit.io), sign in with GitHub
 3. "New app" → pick this repo/branch → main file `app.py` → Deploy
-4. (Optional) Add Airtable secrets under App settings → Secrets, for
-   persistent storage — see "Persistent storage" above
+4. (Optional) Add `ANTHROPIC_API_KEY` and/or Airtable secrets under
+   App settings → Secrets
 
 ## Example prompts to try
 
@@ -196,6 +226,7 @@ Live data files are generated automatically on first run. Log in with
 - "I want VIP darshan for 4 pilgrims from Mumbai this week"
 - "2 people from Delhi by train, helicopter darshan"
 - "Book a bus for 3 people from Delhi next month"
+- (With an API key configured) "2 log Delhi se agle hafte, VIP darshan chahiye"
 
 ## Roadmap / what a real version would need
 

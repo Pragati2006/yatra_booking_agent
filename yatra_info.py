@@ -1,86 +1,122 @@
 """
 yatra_info.py
-Real, researched pilgrimage-essentials content for the Explore Katra tab -
-the kind of practical info a first-time pilgrim actually needs, beyond
-just booking transport/darshan/hotel.
+Real, cross-checked pilgrim essentials for the Explore Katra tab's
+"Yatra Essentials" section: aarti timings, registration process, route
+options to Bhawan, packing guidance, free facilities, and the official
+helpline. Informational only - nothing here is bookable through this app.
 
-Everything here is cross-checked against the official Shrine Board
-site (maavaishnodevi.org) and its own public notices, plus several
-independent pilgrim-guide sources, as of this writing. Shrine Board
-rules and timings can change (e.g. around festivals/Navratri, or
-crowd-management updates) - always confirm anything time-critical via
-the official site or helpline before traveling.
+Sourcing notes (see README "Data Sources" for the full table):
+- Aarti timings: directly from the Shrine Board's own live-darshan page
+  (maavaishnodevi.org/live), cross-checked against independent pilgrim
+  guides - all agree on the same figures.
+- Registration process, route options, and the official helpline number
+  are cross-checked across multiple independent pilgrim-guide sources
+  and (for the helpline) news coverage.
+- Packing/prohibited-items guidance is general pilgrimage-travel advice,
+  not a verbatim official checklist - flagged as such below.
 """
 
-AARTI_SCHEDULE = {
-    "note": "Darshan at the Holy Cave pauses during Aarti - plan around these windows if you want uninterrupted darshan time.",
-    "windows": [
-        {"label": "Morning Aarti", "time": "6:20 AM - 8:00 AM"},
-        {"label": "Evening Aarti", "time": "7:20 PM - 8:30 PM"},
-    ],
-    "shrine_hours": "The shrine itself is open 24x7, 365 days a year - only darshan during the two Aarti windows above is paused, not the whole shrine.",
+AARTI_TIMINGS = {
+    "morning": {"start": "6:20 AM", "end": "8:00 AM", "note": "Same year-round."},
+    "evening_summer": {"start": "7:20 PM", "end": "8:30 PM", "note": "April-September."},
+    "evening_winter": {"start": "6:20 PM", "end": "8:00 PM", "note": "October-March."},
+    "general_note": (
+        "Darshan is open 24x7 otherwise, but pauses completely during these Aarti "
+        "windows - plan around them rather than arriving right at these times."
+    ),
 }
 
 REGISTRATION_INFO = {
-    "summary": "Yatra registration (the 'Yatra Parchi' / RFID card) is free and mandatory for every pilgrim - you cannot start the trek without it.",
-    "how": "Register free online at maavaishnodevi.org, or in person at a Yatra Registration Counter (YRC) in Katra (Bus Stand, Railway Station, Niharika Complex) or Jammu.",
-    "note": "The RFID card is scanned at checkpoints along the route and is also how the Shrine Board tracks pilgrims for safety - don't lose it during the trek.",
+    "cost": "Free (Yatra Slip / Yatra Parchi)",
+    "mandatory": True,
+    "mandatory_note": "Required for every pilgrim, without exception - even if you've booked a helicopter or battery-vehicle ticket.",
+    "how_to_register": [
+        "Online, in advance, at the official Shrine Board site (maavaishnodevi.org) - use only this official domain, never a third-party agent.",
+        "Offline, on arrival, at 24x7 registration counters at Katra Chowk (main market) or Katra railway station.",
+        "On-the-spot, if starting via Tarakote Marg - there's a registration counter right at that route's starting point.",
+    ],
+    "what_youll_need": [
+        "A valid mobile number and email address",
+        "A government-issued photo ID (Aadhaar, passport, or voter ID) - carry the same physical ID during the yatra",
+        "Basic details for each pilgrim in the group (name, age, gender, city/state)",
+    ],
+    "reminder": "Carry a printed or digital copy of your Yatra Slip at all times during the yatra - it's checked at multiple points along the route.",
 }
 
 ROUTE_OPTIONS = [
     {
-        "name": "Traditional trek via Banganga",
-        "distance": "~13 km one-way from Katra to Bhawan",
-        "detail": "The classic pilgrim route, on foot, pony, palki, or battery-operated vehicle for parts of it. Can take 5-9 hours on foot depending on fitness and crowd levels.",
+        "name": "Traditional trek route",
+        "path": "Katra -> Banganga -> Charan Paduka -> Ardhkuwari -> Sanjichhat -> Bhairon Ghati -> Bhawan",
+        "distance": "~13 km",
+        "duration": "Commonly 5-9 hours one-way, depending on pace and rest stops",
+        "notes": "Ponies, palanquins (palki), and pithoos (porters) are available on this route for those who need assistance.",
     },
     {
-        "name": "Tarakote Marg",
-        "distance": "Slightly shorter, similar distance to Bhawan",
-        "detail": "A gentler-gradient alternative route many pilgrims prefer for an easier climb.",
+        "name": "Tarakote Marg (newer route)",
+        "path": "Katra -> Tarakote Marg -> Adhkuwari -> Himkoti -> Bhawan",
+        "distance": "~14 km",
+        "duration": "Similar to the traditional route, often described as a gentler gradient",
+        "notes": "Ponies and palanquins are not permitted here; it's a quieter, less-crowded, pedestrian-only alternative, with battery-operated vehicles available on part of the Adhkuwari-Bhawan stretch.",
     },
     {
-        "name": "Helicopter to Sanjichhat",
-        "distance": "~8-minute flight, then a short walk/vehicle ride to Bhawan",
-        "detail": "The fastest option, booked as 'Helicopter Darshan' in this app. Subject to weather - can be delayed or grounded in poor conditions, especially during monsoon.",
+        "name": "Helicopter",
+        "path": "Katra helipad -> Sanjichhat (then a short walk to Bhawan)",
+        "distance": "~2.5 km walk after landing",
+        "duration": "~8-minute flight",
+        "notes": "Book online up to 60 days ahead at the official Shrine Board site. Carry valid photo ID, address proof, and the card used for payment - boarding can be denied without these. The Yatra Slip is still mandatory even for helicopter passengers.",
     },
 ]
 
-PACKING_AND_RULES = {
-    "prohibited": [
-        "Electronic devices - cameras, laptops, tablets, and similar are strictly prohibited on the yatra track (official Shrine Board rule).",
-        "Large baggage - travel light; cloak rooms are available at Katra and Bhawan to store what you don't need on the trek.",
-    ],
-    "general_tips": [
-        "Comfortable walking shoes with good grip - the track includes steps and can be slippery, especially in monsoon.",
-        "A light raincoat/poncho during monsoon months, and warm layers in winter (see the weather card for what applies to your dates).",
-        "A small water bottle and some cash for tea stalls and prasad along the route (free drinking water and langar are also available at several points).",
-        "A valid photo ID - required for registration and for helicopter/Aarti bookings.",
-    ],
-}
-
-FREE_FACILITIES = [
-    "Free Langar (community meals) at several points along the route, including Tarakote Marg and Sanjichhat.",
-    "24x7 medical centers along the track, including an ICU at Bhawan itself.",
-    "Cloak rooms to safely store baggage/electronics you can't carry on the trek.",
+FACILITIES = [
+    {"name": "Langar (free community kitchens)", "note": "Available at multiple points along the route, including near Banganga and on Tarakote Marg."},
+    {"name": "Medical centers", "note": "Positioned at intervals along the trek route for pilgrim health emergencies."},
+    {"name": "Battery-operated vehicles", "note": "Available on part of the route (mainly the Adhkuwari-Himkoti-Bhawan stretch) for those who need it."},
+    {"name": "Bhairon Baba ropeway", "note": "An ~8-minute ropeway connects Bhawan to the Bhairon Baba temple, an alternative to the walking trek most pilgrims take after darshan."},
 ]
 
-EMERGENCY_HELPLINE = {
-    "toll_free": "1800-180-7212",
-    "phone": "01991-234804",
-    "whatsapp": "9906019494",
-    "note": "24x7 Shrine Board helpline/call centre for yatra-related help. For anything urgent, always double-check the current number on maavaishnodevi.org, since helpline numbers do occasionally change.",
+PACKING_GUIDANCE = {
+    "disclaimer": "General pilgrimage-travel guidance, not a verbatim official checklist from the Shrine Board.",
+    "recommended": [
+        "Comfortable, broken-in walking shoes (the trek is long, regardless of route)",
+        "A light woolen layer even in summer - it gets cool at altitude, especially at night",
+        "A raincoat or poncho during the monsoon months",
+        "Your printed/digital Yatra Slip and original photo ID",
+        "A refillable water bottle and any personal medicines",
+        "Sunscreen and a cap for daytime sun exposure on the trek",
+    ],
+    "commonly_restricted": [
+        "Alcohol and tobacco products",
+        "Non-vegetarian food",
+        "Weapons or sharp objects",
+        "Drones, without prior permission",
+    ],
+}
+
+HELPLINE = {
+    "official_yatra_helpline": "1800-180-7198",
+    "note": "Official Shrine Board (SMVDSB) toll-free helpline for yatra-related queries.",
 }
 
 
-def get_packing_tip(weather_info):
-    """Takes the dict returned by weather.get_weather() and returns one
-    short, practical packing line tailored to that season - shown right
-    next to the weather card so the info is actionable, not just trivia."""
-    summary = weather_info.get("summary", "").lower()
-    if "snow" in summary or weather_info.get("low_c", 99) <= 8:
-        return "❄️ Pack warm layers, gloves, and a cap - it'll be cold, especially higher up toward Bhawan."
-    if "monsoon" in summary or "rain" in summary:
-        return "🌧️ Pack a raincoat/poncho and waterproof footwear - the trek can get slippery in the rain."
-    if weather_info.get("high_c", 0) >= 32:
-        return "☀️ Pack light cotton clothes, sunscreen, and extra water - it'll be hot on the trek."
-    return "🌤️ Comfortable walking shoes and a light jacket for the evenings should cover it."
+def get_aarti_timings():
+    return AARTI_TIMINGS
+
+
+def get_registration_info():
+    return REGISTRATION_INFO
+
+
+def get_route_options():
+    return ROUTE_OPTIONS
+
+
+def get_facilities():
+    return FACILITIES
+
+
+def get_packing_guidance():
+    return PACKING_GUIDANCE
+
+
+def get_helpline():
+    return HELPLINE
