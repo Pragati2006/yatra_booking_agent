@@ -22,21 +22,21 @@ handles all rendering, so the agent logic stays testable on its own.
 
 import agent as legacy_agent
 import db
-from agents import conversation_agent, content_agent, itinerary_agent
+from agents import conversation_agent, content_agent, itinerary_agent, knowledge_agent, rpa_agent
 
 
 def get_greeting():
     return conversation_agent.greeting()
 
 
-def process_trip_message(user_text, api_key=None):
-    """Entry point for the initial conversational trip search.
-    Returns a dict: {reply, plan} where plan is build_plan()'s output
-    (status, options, etc.) and reply is the natural-language message
-    to show the pilgrim."""
-    request = conversation_agent.understand_request(user_text, api_key=api_key)
+def process_trip_message(user_text, current_request=None, api_key=None, base_url=None):
+    """Entry point for the conversational trip search.
+    Returns a dict: {reply, plan, request} where plan is build_plan()'s output
+    (status, options, etc.), reply is the natural-language message, and request
+    is the state-accumulated trip request dict."""
+    request = conversation_agent.understand_request(user_text, current_request=current_request, api_key=api_key, base_url=base_url)
     plan = legacy_agent.build_plan(request)
-    reply = conversation_agent.craft_reply(user_text, plan["status"], plan, api_key=api_key)
+    reply = conversation_agent.craft_reply(user_text, plan["status"], plan, api_key=api_key, base_url=base_url)
     return {"reply": reply, "plan": plan, "request": request}
 
 
@@ -55,6 +55,16 @@ def get_place_content(place_name):
     return content_agent.get_enriched_place(place_name)
 
 
+def get_tourism_knowledge(query: str = ""):
+    """KnowledgeAgent duty - retrieves J&K tourism facts and route knowledge."""
+    return knowledge_agent.get_jk_tourism_knowledge(query)
+
+
+def get_personalized_places(travel_preferences: dict = None):
+    """KnowledgeAgent duty - generates personalized tourist recommendations."""
+    return knowledge_agent.get_personalized_recommendations(travel_preferences)
+
+
 def build_final_itinerary(option, hotel=None, hotel_nights=0, sightseeing_places=None):
     return itinerary_agent.build_itinerary(option, hotel=hotel, hotel_nights=hotel_nights, sightseeing_places=sightseeing_places)
 
@@ -69,3 +79,16 @@ def confirm_booking(option, pax, user_name, hotel=None, hotel_nights=0, sightsee
     )
     blessing = conversation_agent.confirmation_blessing()
     return booking_id, blessing
+
+
+def execute_rpa_demo(user_name, pax_count, transport_text, slot_text, total_price, headless=True):
+    """RPAAgent duty - runs safe Playwright mock booking workflow."""
+    return rpa_agent.execute_playwright_mock_booking(
+        user_name=user_name,
+        pax_count=pax_count,
+        transport_text=transport_text,
+        slot_text=slot_text,
+        total_price=total_price,
+        headless=headless,
+    )
+

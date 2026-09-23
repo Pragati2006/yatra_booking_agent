@@ -18,20 +18,39 @@ def _fmt_date(d):
 
 def build_itinerary(option, hotel=None, hotel_nights=0, sightseeing_places=None):
     """Returns a list of day dicts: {day_number, date, title, activities: [str, ...]}."""
-    tr, s = option["flight"], option["slot"]
+    tr = option.get("transport") or option.get("flight")
+    s = option["slot"]
     sightseeing_places = sightseeing_places or []
 
     days = []
     travel_date = tr["travel_date"]
     darshan_date = s["slot_date"]
+    mode = tr.get("mode", "transport").lower()
+    operator = tr.get("operator", "")
+    transport_no = tr.get("transport_no", "")
+    dep_time = tr.get("departure_time", "")
+
+    if mode == "flight":
+        transport_summary = f"Fly with {operator} ({transport_no}) departing at {dep_time} from {tr['origin']} to {tr['destination']}"
+    elif mode == "train":
+        transport_summary = f"Travel by Train via {operator} - {transport_no} departing at {dep_time} from {tr['origin']} to {tr['destination']}"
+    else:
+        transport_summary = f"Travel via {operator} {transport_no} from {tr['origin']} to {tr['destination']}"
+
+    if tr.get("route_note"):
+        transport_summary += f" ({tr['route_note']})"
 
     # Day 1: travel + arrival
-    day1_activities = [f"Travel by {tr.get('mode', 'transport')} ({tr.get('operator', '-')} {tr.get('transport_no', '')}) from {tr['origin']} to {tr['destination']}"]
-    if tr.get("mode") == "flight":
-        day1_activities.append("Taxi from Jammu Airport to Katra (~1.5-2 hrs)")
+    day1_activities = [transport_summary]
+    if mode == "flight":
+        day1_activities.append("Taxi transfer from Jammu Airport to Katra (~1.5-2 hrs)")
+    else:
+        day1_activities.append("Direct arrival in Katra base town")
+
     if hotel:
         day1_activities.append(f"Check in at {hotel['name']} ({hotel['category']})")
-    days.append({"day_number": 1, "date": _fmt_date(travel_date), "title": "Arrival in Katra", "activities": day1_activities})
+    days.append({"day_number": 1, "date": _fmt_date(travel_date), "title": "Arrival & Check-in", "activities": day1_activities})
+
 
     # If darshan is on a later date, add a rest/prep day
     dep = datetime.strptime(travel_date, "%Y-%m-%d")

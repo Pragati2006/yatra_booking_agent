@@ -203,204 +203,206 @@ def render_place_image(place, height_px=180):
 
 
 def get_api_key():
-    """Looks for an Anthropic API key in Streamlit secrets (for the
-    deployed app) or an environment variable (for local runs). Returns
-    None if neither is set - the app still works fully in that case,
-    just with rule-based (English-only) parsing instead of the
-    LLM-powered multilingual conversational agent."""
+    """Looks for an OPENAI_API_KEY or ANTHROPIC_API_KEY in Streamlit secrets or env vars.
+    Returns None if neither is set - the app falls back to rule-based English parsing."""
     try:
+        if "OPENAI_API_KEY" in st.secrets:
+            return st.secrets["OPENAI_API_KEY"]
         if "ANTHROPIC_API_KEY" in st.secrets:
             return st.secrets["ANTHROPIC_API_KEY"]
     except Exception:
         pass
-    return os.environ.get("ANTHROPIC_API_KEY")
+    return os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+
+
+def get_base_url():
+    """Looks for OPENAI_BASE_URL (for local OSS models like Ollama, LM Studio, vLLM)."""
+    try:
+        if "OPENAI_BASE_URL" in st.secrets:
+            return st.secrets["OPENAI_BASE_URL"]
+    except Exception:
+        pass
+    return os.environ.get("OPENAI_BASE_URL")
+
 
 
 st.set_page_config(page_title="Vaishno Devi Yatra Agent", page_icon="🛕", layout="wide")
 
-# --- Custom styling ---
+# --- Custom styling for Vaishno Devi Yatra AI ---
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
     :root {
-        --maroon-dark: #6E1423;
-        --maroon: #A61B29;
-        --maroon-light: #C2374A;
-        --gold: #C9A227;
-        --gold-light: #E8C874;
-        --cream: #FDF6EC;
-        --cream-card: #FFFFFF;
-        --text-dark: #3B1F1F;
-        --text-muted: #8A6857;
+        --bg-main: #FAF7F2;
+        --card-bg: #FFFFFF;
+        --burgundy-dark: #4A0D17;
+        --burgundy: #6E1423;
+        --burgundy-light: #8E1E2E;
+        --gold-accent: #C9A227;
+        --gold-subtle: #F3E9D2;
+        --text-primary: #2B2222;
+        --text-muted: #6C5D5D;
+        --border-color: #EBE3D5;
     }
 
-    html, body, [class*="css"]  { font-family: 'Inter', sans-serif; font-size: 16px; }
-    h1, h2, h3 { font-family: 'Poppins', sans-serif; letter-spacing: -0.01em; }
-    p, li, span, label { line-height: 1.55; }
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+        font-size: 15px;
+        color: var(--text-primary);
+    }
 
-    /* Subtle devotional background texture - soft repeating diya/dot motif, very low opacity */
     .stApp {
-        background-color: var(--cream);
-        background-image:
-            radial-gradient(circle at 4px 4px, rgba(166,27,41,0.05) 1.5px, transparent 0);
-        background-size: 26px 26px;
+        background-color: var(--bg-main);
     }
 
-    .block-container { max-width: 1240px; padding-top: 1.6rem; padding-bottom: 3rem; }
-    body { overflow-x: hidden; }
-
-    /* Gold top strip - a small premium touch many devotional/temple sites use */
-    .top-strip {
-        height: 6px; width: 100%;
-        background: linear-gradient(90deg, var(--maroon-dark), var(--gold), var(--maroon-dark));
-        border-radius: 999px; margin-bottom: 1.2rem;
+    .block-container {
+        max-width: 1180px;
+        padding-top: 1.5rem;
+        padding-bottom: 3rem;
     }
 
-    /* ---------- Hero ---------- */
-    .hero-wrap {
-        border-radius: 26px; overflow: hidden; margin-bottom: 1.4rem;
-        box-shadow: 0 14px 36px rgba(110,20,35,0.28);
-        position: relative;
-    }
-    .hero-title {
-        font-family: 'Poppins', sans-serif; font-weight: 900;
-        font-size: 2.5rem; margin: 1.1rem 0 0.3rem 0; color: var(--maroon-dark);
-    }
-    .hero-sub { font-size: 1.12rem; font-weight: 500; max-width: 660px; color: var(--text-muted); }
-
-    /* ---------- Feature stat row ---------- */
-    .stat-row { display: flex; gap: 14px; margin: 1.1rem 0 1.8rem 0; flex-wrap: wrap; }
-    .stat-card {
-        flex: 1; min-width: 160px;
-        background: linear-gradient(160deg, #FFFFFF 0%, #FFF3DE 100%);
-        border: 1px solid var(--gold-light); border-radius: 18px;
-        padding: 1.1rem 1.2rem; box-shadow: 0 6px 18px rgba(201,162,39,0.16);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .stat-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(201,162,39,0.28); }
-    .stat-card .stat-num { font-family:'Poppins',sans-serif; font-weight:800; font-size:1.6rem; color: var(--maroon); }
-    .stat-card .stat-label { font-size:0.86rem; color: var(--text-muted); font-weight:600; margin-top:2px; }
-
-    /* ---------- Chat ---------- */
-    .stChatMessage { border-radius: 18px; }
-    div[data-testid="stChatMessage"] { padding: 8px 4px; }
-    [data-testid="stChatMessageContent"] p { font-size: 1.03rem; }
-    div[data-testid="stChatInput"] {
-        border: 2px solid var(--gold-light) !important; border-radius: 16px !important;
-        box-shadow: 0 4px 16px rgba(110,20,35,0.08) !important;
-    }
-    div[data-testid="stChatInput"] textarea { font-size: 1.03rem !important; }
-    div[data-testid="stChatInput"]:focus-within {
-        border-color: var(--maroon) !important; box-shadow: 0 4px 20px rgba(166,27,41,0.22) !important;
+    /* Header & Brand */
+    .brand-title {
+        font-family: 'Poppins', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: var(--burgundy);
+        letter-spacing: -0.02em;
+        margin-bottom: 0.2rem;
     }
 
-    /* ---------- Step pills ---------- */
+    .hero-subtext {
+        font-size: 1.05rem;
+        color: var(--text-muted);
+        font-weight: 400;
+        margin-bottom: 1.5rem;
+        max-width: 750px;
+    }
+
+    /* Capability Cards */
+    .capability-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 1.8rem;
+    }
+    @media (max-width: 768px) {
+        .capability-grid { grid-template-columns: 1fr; }
+    }
+
+    .cap-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.2rem 1.3rem;
+        box-shadow: 0 2px 8px rgba(110,20,35,0.04);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .cap-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(110,20,35,0.08);
+    }
+
+    .cap-title {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 0.92rem;
+        color: var(--burgundy);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 4px;
+    }
+
+    .cap-desc {
+        font-size: 0.88rem;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    /* Step Pills */
     .step-pill {
-        display: inline-block; padding: 8px 19px; border-radius: 999px;
-        font-size: 0.85rem; font-weight: 700; margin-right: 8px; margin-bottom: 1.2rem;
-        transition: all 0.25s ease;
+        display: inline-block; padding: 7px 16px; border-radius: 20px;
+        font-size: 0.82rem; font-weight: 700; margin-right: 8px; margin-bottom: 1.2rem;
+        transition: all 0.2s ease;
     }
     .step-active {
-        background: linear-gradient(135deg, var(--maroon-light) 0%, var(--maroon-dark) 100%);
-        color: #FFFFFF; box-shadow: 0 5px 16px rgba(110,20,35,0.45);
-        transform: scale(1.04);
+        background: var(--burgundy);
+        color: #FFFFFF;
+        box-shadow: 0 4px 12px rgba(110,20,35,0.3);
     }
-    .step-done { background: var(--gold-light); color: #5c3a22; }
-    .step-inactive { background: #F5E7D3; color: #a88a6f; }
+    .step-done { background: var(--gold-subtle); color: #5C4314; border: 1px solid #E2D3B1; }
+    .step-inactive { background: #EFE8DC; color: #918275; }
 
-    /* ---------- Cards & badges ---------- */
-    .plan-total { font-size: 1.28rem; font-weight: 800; color: var(--maroon); margin-top: 0.5rem; }
-    .option-badge {
-        display:inline-block; background: linear-gradient(135deg, var(--gold-light), var(--gold));
-        color: #5c3a0f; font-weight:800; font-size:0.78rem; padding:4px 13px; border-radius:999px; margin-bottom:8px;
-    }
-    .best-badge {
-        display:inline-block; background: linear-gradient(135deg, #2E9E5B, #1E8449); color:#fff; font-weight:700;
-        font-size:0.75rem; padding:4px 12px; border-radius:999px; margin-left:6px;
-    }
-    .mode-badge {
-        display:inline-block; font-weight:700; font-size:0.75rem; padding:4px 12px;
-        border-radius:999px; margin-left:6px; background: linear-gradient(135deg, #2E4A66, #1B3040); color:#fff;
-    }
-    .place-card-title { font-weight:800; font-size:1.15rem; margin-bottom:3px; font-family:'Poppins',sans-serif; color: var(--maroon-dark); }
-    .place-cat { color: var(--maroon); font-weight:700; font-size:0.8rem; }
-
-    /* ---------- Every bordered container gets a premium card treatment + hover lift ---------- */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        border-radius: 18px !important;
-        border: 1px solid #EEDDBF !important;
-        box-shadow: 0 4px 14px rgba(110,20,35,0.06) !important;
-        transition: transform 0.18s ease, box-shadow 0.18s ease !important;
-        background: var(--cream-card) !important;
-    }
-    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 26px rgba(110,20,35,0.14) !important;
-    }
-    div[data-testid="stExpander"] {
-        border-radius: 14px !important; border: 1px solid var(--gold-light) !important;
-        overflow: hidden;
-    }
-    div[data-testid="stExpander"] summary {
-        font-weight: 700 !important; color: var(--maroon-dark) !important;
-    }
-
-    /* ---------- Buttons: EVERY button gets a real, colorful, interactive style ---------- */
+    /* Buttons */
     .stButton button, div[data-testid="stFormSubmitButton"] button {
-        border-radius: 11px !important;
-        font-weight: 700 !important;
-        transition: all 0.18s ease !important;
-        border: 2px solid var(--maroon) !important;
-        color: var(--maroon-dark) !important;
-        background: #FFFFFF !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        transition: all 0.15s ease !important;
+        border: 1px solid var(--burgundy) !important;
+        color: #FFFFFF !important;
+        background: var(--burgundy) !important;
+        padding: 0.55rem 1.2rem !important;
+        box-shadow: 0 2px 6px rgba(110,20,35,0.2) !important;
     }
     .stButton button:hover, div[data-testid="stFormSubmitButton"] button:hover {
-        background: #FDEEEF !important;
-        border-color: var(--maroon-dark) !important;
+        background: var(--burgundy-light) !important;
+        border-color: var(--burgundy-light) !important;
         transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(166,27,41,0.22) !important;
+        box-shadow: 0 5px 14px rgba(110,20,35,0.3) !important;
     }
-    button[kind="primary"] {
-        background: linear-gradient(135deg, var(--maroon-light) 0%, var(--maroon-dark) 100%) !important;
-        border: none !important;
-        color: #FFFFFF !important;
-        box-shadow: 0 5px 16px rgba(110,20,35,0.4) !important;
+
+    /* Secondary / outline buttons */
+    button[kind="secondary"] {
+        background: #FFFFFF !important;
+        color: var(--burgundy) !important;
+        border: 1px solid var(--border-color) !important;
     }
-    button[kind="primary"]:hover {
-        box-shadow: 0 8px 22px rgba(110,20,35,0.55) !important;
-        transform: translateY(-2px) scale(1.01);
-        filter: brightness(1.06);
+
+    /* Option Cards */
+    .option-card-wrap {
+        background: #FFFFFF;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 18px 22px;
+        margin-bottom: 14px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     }
-    .stButton button:active, button[kind="primary"]:active { transform: translateY(0) scale(0.99); }
+    .option-card-recommended {
+        border: 2px solid var(--gold-accent);
+        background: #FFFDF9;
+    }
+    .badge-rec {
+        display: inline-block; background: var(--gold-accent); color: #FFFFFF;
+        font-size: 0.72rem; font-weight: 700; padding: 2px 10px; border-radius: 12px; text-transform: uppercase;
+        margin-left: 8px;
+    }
 
-    /* Radio / checkbox / select accent color */
-    div[role="radiogroup"] label span:first-child, [data-baseweb="checkbox"] span { accent-color: var(--maroon) !important; }
-    div[data-baseweb="select"] > div { border-radius: 10px !important; border-color: var(--gold-light) !important; }
+    /* Containers */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        border-radius: 12px !important;
+        border: 1px solid var(--border-color) !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03) !important;
+        background: var(--card-bg) !important;
+    }
 
-    /* ---------- Tabs ---------- */
-    button[data-baseweb="tab"] { font-size: 1.04rem !important; font-weight: 700 !important; color: var(--text-muted) !important; }
-    button[data-baseweb="tab"][aria-selected="true"] { color: var(--maroon-dark) !important; }
-    div[data-baseweb="tab-highlight"] { background-color: var(--maroon) !important; height: 3px !important; }
+    /* Tabs */
+    button[data-baseweb="tab"] { font-size: 1rem !important; font-weight: 700 !important; color: var(--text-muted) !important; }
+    button[data-baseweb="tab"][aria-selected="true"] { color: var(--burgundy) !important; }
+    div[data-baseweb="tab-highlight"] { background-color: var(--burgundy) !important; height: 3px !important; }
 
-    /* ---------- Sidebar ---------- */
+    /* Sidebar */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #FFF8EC 0%, #FCEBD1 100%);
-        border-right: 1px solid var(--gold-light);
+        background-color: #F5EFE6 !important;
+        border-right: 1px solid var(--border-color) !important;
     }
-
-    /* ---------- Devotional flourish: small diya flicker animation ---------- */
-    @keyframes flicker {
-        0%, 100% { opacity: 1; transform: scaleY(1); }
-        50% { opacity: 0.75; transform: scaleY(0.92); }
-    }
-    .diya-flame { animation: flicker 1.6s ease-in-out infinite; transform-origin: bottom center; }
     </style>
     """,
     unsafe_allow_html=True,
 )
-st.markdown('<div class="top-strip"></div>', unsafe_allow_html=True)
+
 
 # --- One-time DB setup. build_database() checks each dataset file
 # individually and only (re)builds what's actually missing, so it's
@@ -409,109 +411,56 @@ with st.spinner("Setting up mock yatra, flight, train & bus data..."):
     build_database()
 
 API_KEY = get_api_key()
+BASE_URL = get_base_url()
 
-MODE_ICON = {"flight": "✈️", "train": "🚆", "bus": "🚌"}
 MODE_LABEL = {"flight": "Flight", "train": "Train", "bus": "Bus"}
 
-# --- Hero banner (purely decorative graphic, no overlaid text - keeps everything readable) ---
+# --- Hero Section: Compact, Brand-Focused ---
 st.markdown(
     """
-    <div class="hero-wrap">
-    <svg viewBox="0 0 1400 220" width="100%" style="display:block;">
-      <defs>
-        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#C2374A"/>
-          <stop offset="55%" stop-color="#8E1E2E"/>
-          <stop offset="100%" stop-color="#6E1423"/>
-        </linearGradient>
-        <radialGradient id="glow" cx="50%" cy="35%" r="60%">
-          <stop offset="0%" stop-color="#FFE9A8" stop-opacity="0.35"/>
-          <stop offset="100%" stop-color="#FFE9A8" stop-opacity="0"/>
-        </radialGradient>
-      </defs>
-      <rect width="1400" height="220" fill="url(#sky)"/>
-      <rect width="1400" height="220" fill="url(#glow)"/>
+    <div style="margin-bottom: 1.4rem;">
+        <div class="brand-title">VAISHNO DEVI YATRA AI</div>
+        <div class="hero-subtext">
+            Your intelligent travel companion for planning travel, darshan, stays and sightseeing across Jammu & Kashmir.
+        </div>
+    </div>
 
-      <!-- Om symbol watermark, subtle -->
-      <text x="120" y="150" font-size="150" fill="#FFFFFF" opacity="0.06" font-family="serif">ॐ</text>
-
-      <!-- Sun / divine light -->
-      <circle cx="1230" cy="60" r="42" fill="#FFE9A8" opacity="0.85"/>
-      <circle cx="1230" cy="60" r="60" fill="none" stroke="#FFE9A8" stroke-width="1.5" opacity="0.35"/>
-
-      <!-- Hills -->
-      <polygon points="0,220 220,90 400,220" fill="#5A101C" opacity="0.55"/>
-      <polygon points="280,220 520,50 800,220" fill="#7A1826" opacity="0.75"/>
-      <polygon points="650,220 860,95 1180,220" fill="#5A101C" opacity="0.55"/>
-      <polygon points="1000,220 1220,65 1400,220" fill="#7A1826" opacity="0.75"/>
-
-      <!-- Temple, gold accented -->
-      <g>
-        <rect x="630" y="165" width="130" height="55" fill="#FFF3E2" opacity="0.97"/>
-        <polygon points="630,165 695,100 760,165" fill="#FFF3E2" opacity="0.97"/>
-        <rect x="683" y="72" width="24" height="32" fill="#FFF3E2" opacity="0.97"/>
-        <circle cx="695" cy="64" r="10" fill="#E8C874"/>
-        <rect x="630" y="160" width="130" height="6" fill="#C9A227"/>
-        <rect x="683" y="100" width="24" height="6" fill="#C9A227"/>
-      </g>
-
-      <!-- Diyas (lamps) along the base, with a flicker animation on the flames -->
-      <g>
-        <g transform="translate(380,196)"><rect x="-9" y="6" width="18" height="7" rx="3" fill="#C9A227"/><ellipse class="diya-flame" cx="0" cy="0" rx="3.5" ry="7" fill="#FFD873"/></g>
-        <g transform="translate(460,200)"><rect x="-9" y="6" width="18" height="7" rx="3" fill="#C9A227"/><ellipse class="diya-flame" cx="0" cy="0" rx="3.5" ry="7" fill="#FFD873"/></g>
-        <g transform="translate(940,200)"><rect x="-9" y="6" width="18" height="7" rx="3" fill="#C9A227"/><ellipse class="diya-flame" cx="0" cy="0" rx="3.5" ry="7" fill="#FFD873"/></g>
-        <g transform="translate(1020,196)"><rect x="-9" y="6" width="18" height="7" rx="3" fill="#C9A227"/><ellipse class="diya-flame" cx="0" cy="0" rx="3.5" ry="7" fill="#FFD873"/></g>
-      </g>
-    </svg>
+    <div class="capability-grid">
+        <div class="cap-card">
+            <div class="cap-title">1. PLAN YOUR YATRA</div>
+            <div class="cap-desc">Travel + Darshan + Stay</div>
+        </div>
+        <div class="cap-card">
+            <div class="cap-title">2. DISCOVER J&K</div>
+            <div class="cap-desc">Sightseeing + History + Local Tips</div>
+        </div>
+        <div class="cap-card">
+            <div class="cap-title">3. SMART ASSISTANCE</div>
+            <div class="cap-desc">Personalized recommendations + itinerary</div>
+        </div>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-# --- Hero text: real content, plain background, always readable ---
-st.markdown('<div class="hero-title">🛕 Vaishno Devi Yatra Agent</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="hero-sub" style="margin-bottom:1.4rem;">'
-    "🙏 Your AI companion for planning a blessed, hassle-free pilgrimage — travel, darshan, "
-    "stay & sightseeing, all in one conversation.</div>",
-    unsafe_allow_html=True,
-)
 
-# --- Feature stat row ---
-st.markdown(
-    f"""
-    <div class="stat-row">
-        <div class="stat-card"><div class="stat-num">3</div><div class="stat-label">✈️🚆🚌 Travel modes compared</div></div>
-        <div class="stat-card"><div class="stat-num">12+</div><div class="stat-label">🗺️ Curated places, with history</div></div>
-        <div class="stat-card"><div class="stat-num">6</div><div class="stat-label">🪄 Guided planning steps</div></div>
-        <div class="stat-card"><div class="stat-num">{"🌐" if API_KEY else "🇬🇧"}</div><div class="stat-label">{"Multilingual AI active" if API_KEY else "English rule-based mode"}</div></div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-if not API_KEY:
-    st.caption(
-        "💬 Conversational mode: rule-based (English). Add an ANTHROPIC_API_KEY to enable "
-        "full multilingual understanding — see README."
-    )
 
 # --- Session state ---
 if "guest_id" not in st.session_state:
-    # No sign-up required: each browser session gets a lightweight guest
-    # identity, just so booking history has something to group by.
     st.session_state.guest_id = "Guest-" + uuid.uuid4().hex[:5].upper()
 
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": coordinator.get_greeting()}]
+if "trip_request" not in st.session_state:
+    st.session_state.trip_request = None
 if "pending_options" not in st.session_state:
     st.session_state.pending_options = None
 if "selected_option" not in st.session_state:
     st.session_state.selected_option = None
 if "hotel_decision" not in st.session_state:
-    st.session_state.hotel_decision = None  # None = not decided yet, {} = skipped, {...} = chosen
+    st.session_state.hotel_decision = None
 if "sightseeing_decision" not in st.session_state:
-    st.session_state.sightseeing_decision = None  # None = not decided yet, [] = skipped, [names...] = chosen
+    st.session_state.sightseeing_decision = None
 if "itinerary_confirmed" not in st.session_state:
     st.session_state.itinerary_confirmed = False
 
@@ -519,49 +468,53 @@ if "itinerary_confirmed" not in st.session_state:
 with st.sidebar:
     st.markdown(
         f"""
-        <div style="background: linear-gradient(135deg, #C2374A 0%, #6E1423 100%); border-radius: 16px;
-                    padding: 1.1rem 1.2rem; margin-bottom: 1rem; box-shadow: 0 4px 14px rgba(110,20,35,0.35);">
-            <div style="color:#F8D9C4; font-size:0.78rem; font-weight:700; letter-spacing:0.03em;">CURRENT SESSION</div>
-            <div style="color:#FFFFFF; font-size:1.15rem; font-weight:800; font-family:'Poppins',sans-serif;">👋 {st.session_state.guest_id}</div>
+        <div style="background: #FFFFFF; border: 1px solid #EBE3D5; border-radius: 12px;
+                    padding: 1.1rem 1.2rem; margin-bottom: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+            <div style="color: #6E1423; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;">
+                Vaishno Devi Yatra AI
+            </div>
+            <div style="color: #2B2222; font-size: 1.1rem; font-weight: 700; margin-top: 4px;">
+                {st.session_state.guest_id}
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-    st.caption("No sign-up needed — this is a temporary session identity.")
+    st.caption("Temporary session identity — no login required.")
     st.divider()
 
-    st.markdown("#### 📜 Booking history")
+    st.markdown("#### Booking History")
     bookings = db.list_bookings(user_name=st.session_state.guest_id)
     if not bookings:
-        st.info("No bookings yet — start a conversation to plan your yatra!", icon="🙏")
+        st.info("No bookings yet — start a conversation to plan your yatra.")
     for b in bookings:
         with st.expander(f"{b['booking_id']} · {b['status']}"):
             st.write(f"**Name:** {b['user_name']}")
-            st.write(f"**Pax:** {b['pax_count']}")
+            st.write(f"**Passengers:** {b['pax_count']}")
             st.write(f"**Yatra:** {b.get('category', '-')} on {b.get('slot_date', '-')}")
             mode = b.get("transport_mode", "-")
-            icon = MODE_ICON.get(mode, "")
-            st.write(f"**{icon} {MODE_LABEL.get(mode, 'Transport')}:** {b.get('transport_no', '-')} from {b.get('origin', '-')}")
+            st.write(f"**Transport:** {MODE_LABEL.get(mode, 'Transport')} {b.get('transport_no', '-')} ({b.get('origin', '-')})")
             if b.get("hotel_name") and str(b.get("hotel_name")) != "nan":
-                st.write(f"**🏨 Hotel:** {b.get('hotel_name')} ({b.get('hotel_category', '-')}), {b.get('hotel_nights', '-')} night(s)")
+                st.write(f"**Hotel:** {b.get('hotel_name')} ({b.get('hotel_category', '-')}), {b.get('hotel_nights', '-')} night(s)")
             if b.get("sightseeing_places") and str(b.get("sightseeing_places")) != "nan":
-                st.write(f"**🗺️ Sightseeing:** {b.get('sightseeing_places')}")
+                st.write(f"**Sightseeing:** {b.get('sightseeing_places')}")
             st.write(f"**Total:** ₹{b['total_price']}")
+
+    st.divider()
+    with st.expander("System & Developer Status"):
+        st.caption(f"LLM Engine: {'GPT-OSS Active' if API_KEY else 'English Rule-Based Mode'}")
+        if BASE_URL:
+            st.caption(f"Base URL: {BASE_URL}")
 
 
 def render_steps(current):
     labels = [
-        "1 · Tell us your trip", "2 · Review options", "3 · Add a stay",
-        "4 · Sightseeing", "5 · Itinerary", "6 · Pay & confirm",
+        "1. Request", "2. Options", "3. Stay",
+        "4. Sightseeing", "5. Itinerary", "6. Confirm",
     ]
     html = ""
     for i, label in enumerate(labels, start=1):
-        if i == current:
-            cls = "step-active"
-        elif i < current:
-            cls = "step-done"
-        else:
-            cls = "step-inactive"
+        cls = "step-active" if i == current else ("step-done" if i < current else "step-inactive")
         html += f'<span class="step-pill {cls}">{label}</span>'
     st.markdown(html, unsafe_allow_html=True)
 
@@ -572,10 +525,11 @@ def _reset_flow():
     st.session_state.hotel_decision = None
     st.session_state.sightseeing_decision = None
     st.session_state.itinerary_confirmed = False
+    st.session_state.trip_request = None
 
 
 # --- Top-level tabs ---
-tab_book, tab_explore = st.tabs(["🎫 Book your yatra", "🗺️ Explore Katra"])
+tab_book, tab_explore = st.tabs(["Book Your Yatra", "Explore Jammu & Kashmir"])
 
 with tab_book:
     if st.session_state.selected_option and st.session_state.hotel_decision is not None and st.session_state.sightseeing_decision is not None and st.session_state.itinerary_confirmed:
@@ -592,200 +546,193 @@ with tab_book:
         current_step = 1
     render_steps(current_step)
 
-    st.caption(
-        "Prototype — bookings are simulated against mock data, not real yatra registration or "
-        "airline/rail/bus systems. Payment is a simulated demo checkout."
-    )
+    st.caption("Demonstration prototype — bookings and payments are simulated for review.")
 
+    # --- Render Conversation ---
     for i, msg in enumerate(st.session_state.messages):
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-            if msg["role"] == "assistant":
-                render_speak_button(msg["content"], key=f"speak_msg_{i}")
+        if msg["role"] == "user":
+            st.markdown(f'<div class="user-bubble-wrap"><div class="user-bubble">{msg["content"]}</div></div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="assistant-block-wrap"><div class="assistant-block">{msg["content"]}</div></div>', unsafe_allow_html=True)
+            render_speak_button(msg["content"], key=f"speak_msg_{i}")
 
-    # --- STEP 2: selectable option cards, one per transport mode when possible ---
+    # --- STEP 2: Structured Option Cards ---
     if st.session_state.pending_options:
         bundle = st.session_state.pending_options
         pax = bundle["pax"]
         options = bundle["options"]
 
-        with st.chat_message("assistant"):
-            st.markdown(f"**Here are the top {len(options)} option(s) I found — pick one to continue:**")
+        st.markdown(f"### Available Travel Options")
+        st.caption(f"Found {len(options)} options matching your dates and passenger count ({pax} pilgrims).")
 
-            for i, opt in enumerate(options):
-                tr, s = opt["flight"], opt["slot"]
-                mode = tr.get("mode", "flight")
-                icon = MODE_ICON.get(mode, "🚗")
-                label = MODE_LABEL.get(mode, mode.title())
+        for i, opt in enumerate(options):
+            tr = opt.get("transport") or opt.get("flight")
+            s = opt["slot"]
+            mode = tr.get("mode", "flight")
+            label = MODE_LABEL.get(mode, mode.title())
+            is_recommended = (i == 0)
 
-                with st.container(border=True):
-                    badge_html = f'<span class="option-badge">Option {i + 1}</span><span class="mode-badge">{icon} {label}</span>'
-                    if i == 0:
-                        badge_html += '<span class="best-badge">💰 Cheapest</span>'
-                    st.markdown(badge_html, unsafe_allow_html=True)
+            card_class = "option-card-wrap option-card-recommended" if is_recommended else "option-card-wrap"
+            rec_badge = '<span class="badge-rec">Recommended · Best Value</span>' if is_recommended else ''
 
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown(f"**{icon} {label}**")
-                        st.write(f"{tr.get('operator', '-')} {tr.get('transport_no', '')}")
-                        st.write(f"{tr['origin']} → {tr['destination']}")
-                        st.write(f"{tr['travel_date']} at {fmt_time(tr['departure_time'])}")
-                        st.write(f"₹{tr['price']} / person")
-                    with col2:
-                        st.markdown("**🙏 Yatra slot**")
-                        st.write(f"{s['category']}")
-                        st.write(f"{s['slot_date']} at {fmt_time(s['slot_time'])}")
-                        st.write(f"₹{s['price']} / person")
+            st.markdown(
+                f"""
+                <div class="{card_class}">
+                    <div style="display:flex; justify-shadow:space-between; align-items:center; margin-bottom:12px;">
+                        <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:1.05rem; color:#6E1423;">
+                            Option {i + 1} — {label} {rec_badge}
+                        </div>
+                        <div style="font-family:'Poppins',sans-serif; font-weight:800; font-size:1.2rem; color:#6E1423;">
+                            Total: ₹{opt["total_price"]}
+                        </div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-                    st.markdown(
-                        f'<div class="plan-total">Total for {pax} pilgrim(s): ₹{opt["total_price"]}</div>',
-                        unsafe_allow_html=True,
-                    )
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"**Transport ({label})**")
+                st.write(f"**Provider:** {tr.get('operator', '-')} ({tr.get('transport_no', '-')})")
+                st.write(f"**Route:** {tr['origin']} → {tr['destination']}")
+                st.write(f"**Departure:** {tr['travel_date']} at {fmt_time(tr['departure_time'])}")
+                st.write(f"**Fare:** ₹{tr['price']} / person")
+            with col2:
+                st.markdown("**Yatra Slot**")
+                st.write(f"**Category:** {s['category']}")
+                st.write(f"**Slot Time:** {s['slot_date']} at {fmt_time(s['slot_time'])}")
+                st.write(f"**Fee:** ₹{s['price']} / person")
+                st.write(f"**Passengers:** {pax} pilgrims")
 
-                    if mode == "flight":
-                        st.caption(
-                            "🚕 This flight lands at Jammu Airport — you'll then need onward transport to Katra "
-                            "(~45-55 km, ~1.5-2 hrs). Taxi fare guidance and full details are in the next step."
-                        )
-                    else:
-                        st.caption(f"✅ This {label.lower()} goes directly into Katra — no separate onward leg needed.")
+            if mode == "flight":
+                st.caption("Flight arrives at Jammu Airport — onward taxi leg to Katra (~1.5 hrs) is included in timing buffers.")
+            else:
+                st.caption(f"Arrives directly into Katra station/stand — no extra onward leg required.")
 
-                    with st.expander("View full details"):
-                        st.write(f"**{label} details**")
-                        st.json({
-                            "Operator": tr.get("operator", "-"), "Number": tr.get("transport_no", "-"),
-                            "Route": f"{tr['origin']} → {tr['destination']}", "Date": tr["travel_date"],
-                            "Departure": fmt_time(tr["departure_time"]), "Duration": f"{tr.get('duration_mins', '-')} min",
-                            "Seats left": tr["seats_available"], "Fare / person": f"₹{tr['price']}",
-                        })
-                        st.write("**Yatra slot details**")
-                        st.json({
-                            "Category": s["category"], "Date": s["slot_date"], "Time": fmt_time(s["slot_time"]),
-                            "Seats left": s["seats_available"], "Fee / person": f"₹{s['price']}",
-                        })
+            with st.expander("View details"):
+                st.json({
+                    "Mode": label, "Operator": tr.get("operator", "-"), "Number": tr.get("transport_no", "-"),
+                    "Route": f"{tr['origin']} → {tr['destination']}", "Date": tr["travel_date"],
+                    "Departure": fmt_time(tr["departure_time"]), "Duration": f"{tr.get('duration_mins', '-')} min",
+                    "Yatra Slot Category": s["category"], "Slot Date": s["slot_date"], "Slot Time": fmt_time(s["slot_time"]),
+                })
 
-                    if st.button(f"Select option {i + 1}", key=f"select_opt_{i}", type="primary", use_container_width=True):
-                        st.session_state.selected_option = {"pax": pax, "option": opt}
-                        st.session_state.pending_options = None
-                        st.rerun()
-
-            if st.button("← Start over", key="restart_from_step2"):
-                _reset_flow()
+            if st.button(f"Select option {i + 1}", key=f"select_opt_{i}", use_container_width=True):
+                st.session_state.selected_option = {"pax": pax, "option": opt}
+                st.session_state.pending_options = None
                 st.rerun()
 
-    # --- STEP 3: optional hotel stay in Katra, plus how-to-reach-Katra taxi info ---
+            st.write("")
+
+        if st.button("Start over", key="restart_from_step2"):
+            _reset_flow()
+            st.rerun()
+
+    # --- STEP 3: Accommodation in Katra ---
     elif st.session_state.selected_option and st.session_state.hotel_decision is None:
         bundle = st.session_state.selected_option
         pax, opt = bundle["pax"], bundle["option"]
-        tr, s = opt["flight"], opt["slot"]
+        tr = opt.get("transport") or opt.get("flight")
+        s = opt["slot"]
         check_in_default = tr["travel_date"]
 
-        with st.chat_message("assistant"):
-            st.markdown("**Getting to Katra, and where to stay:**")
+        st.markdown("### Accommodation in Katra")
+        st.caption("Add a hotel stay in Katra to complete your itinerary, or continue without hotel booking.")
 
-            taxi = explore_data.get_taxi_info()
-            with st.container(border=True):
-                st.markdown(f"🚕 **{taxi['route']}** · {taxi['distance']} · {taxi['duration']}")
-                for opt_taxi in taxi["options"]:
-                    st.write(f"- {opt_taxi['vehicle']} (up to {opt_taxi['capacity']}): {opt_taxi['fare_range']}")
-                st.caption(taxi["note"])
-                if tr.get("mode") != "flight":
-                    st.caption(f"Note: since you're arriving in Katra directly by {MODE_LABEL.get(tr.get('mode'), 'this mode')}, you may not need this leg — it mainly applies to flight arrivals via Jammu Airport.")
+        taxi = explore_data.get_taxi_info()
+        with st.container(border=True):
+            st.markdown(f"**Local Transport Guidance:** {taxi['route']} ({taxi['distance']}, {taxi['duration']})")
+            for opt_taxi in taxi["options"]:
+                st.write(f"- {opt_taxi['vehicle']} ({opt_taxi['capacity']}): {opt_taxi['fare_range']}")
 
-            st.markdown("**🏨 Would you like to add a hotel stay in Katra?**")
+        want_hotel = st.radio("Would you like to add a hotel stay?", ["No, skip this step", "Yes, view available hotels"], horizontal=True, key="hotel_radio")
+        col1, col2 = st.columns(2)
+        with col1:
+            hotel_category_choice = st.selectbox("Hotel Category", ["Any", "Budget", "Mid-Range", "Premium"], key="hotel_cat")
+        with col2:
+            nights = st.number_input("Nights of Stay", min_value=1, max_value=7, value=1, key="hotel_nights_input")
 
-            want_hotel = st.radio("Add a hotel?", ["No, skip this", "Yes, show me hotels"], horizontal=True, key="hotel_radio")
-            col1, col2 = st.columns(2)
-            with col1:
-                hotel_category_choice = st.selectbox("Category", ["Any", "Budget", "Mid-Range", "Premium"], key="hotel_cat")
-            with col2:
-                nights = st.number_input("Nights", min_value=1, max_value=7, value=1, key="hotel_nights_input")
-
-            if want_hotel == "No, skip this":
-                if st.button("Continue", type="primary", key="skip_hotel", use_container_width=True):
-                    st.session_state.hotel_decision = {}
-                    st.rerun()
-            else:
-                if st.button("Show hotels", key="search_hotels_btn", use_container_width=True):
-                    hotels = coordinator.get_hotel_options(
-                        check_in_default,
-                        category=None if hotel_category_choice == "Any" else hotel_category_choice,
-                    )
-                    st.session_state["_hotel_results"] = {"hotels": hotels, "nights": nights}
-
-                hotel_results = st.session_state.get("_hotel_results")
-                if hotel_results:
-                    hotels, nights = hotel_results["hotels"], hotel_results["nights"]
-                    if not hotels:
-                        st.warning("No hotels found for that category on this date. Try 'Any' category or skip.")
-                    else:
-                        for h in hotels[:5]:
-                            with st.container(border=True):
-                                st.markdown(f"**{h['name']}** · {h['category']}")
-                                st.write(f"₹{h['price_per_night']}/night · {nights} night(s) → ₹{h['price_per_night'] * nights} total")
-                                st.caption(f"{h['rooms_available']} rooms left for check-in {check_in_default}")
-                                if st.button(f"Select {h['name']}", key=f"select_hotel_{h['id']}", use_container_width=True):
-                                    st.session_state.hotel_decision = {"hotel": h, "nights": nights}
-                                    st.session_state.pop("_hotel_results", None)
-                                    st.rerun()
-
-            if st.button("← Back to options", key="back_to_step2_from_hotel"):
-                st.session_state.pending_options = {"pax": pax, "options": [opt]}
-                st.session_state.selected_option = None
+        if want_hotel == "No, skip this step":
+            if st.button("Continue", key="skip_hotel", use_container_width=True):
+                st.session_state.hotel_decision = {}
                 st.rerun()
+        else:
+            if st.button("Search hotels", key="search_hotels_btn", use_container_width=True):
+                hotels = coordinator.get_hotel_options(
+                    check_in_default,
+                    category=None if hotel_category_choice == "Any" else hotel_category_choice,
+                )
+                st.session_state["_hotel_results"] = {"hotels": hotels, "nights": nights}
 
-    # --- STEP 4: optional sightseeing after darshan - now with real history + video links ---
+            hotel_results = st.session_state.get("_hotel_results")
+            if hotel_results:
+                hotels, nights = hotel_results["hotels"], hotel_results["nights"]
+                if not hotels:
+                    st.warning("No hotels found for that category. Try 'Any' category or continue.")
+                else:
+                    for h in hotels[:5]:
+                        with st.container(border=True):
+                            st.markdown(f"**{h['name']}** · {h['category']}")
+                            st.write(f"₹{h['price_per_night']}/night · {nights} night(s) → ₹{h['price_per_night'] * nights} total")
+                            if st.button(f"Select {h['name']}", key=f"select_hotel_{h['id']}", use_container_width=True):
+                                st.session_state.hotel_decision = {"hotel": h, "nights": nights}
+                                st.session_state.pop("_hotel_results", None)
+                                st.rerun()
+
+        if st.button("Back to options", key="back_to_step2_from_hotel"):
+            st.session_state.selected_option = None
+            st.rerun()
+
+    # --- STEP 4: Sightseeing ---
     elif st.session_state.selected_option and st.session_state.hotel_decision is not None and st.session_state.sightseeing_decision is None:
         bundle = st.session_state.selected_option
         pax, opt = bundle["pax"], bundle["option"]
 
-        with st.chat_message("assistant"):
-            st.markdown("**Planning to visit any tourist places after darshan?**")
-            st.caption("These places aren't bookable — just recommendations with history and local-travel guidance, so you can plan your time.")
+        st.markdown("### Discover Places Around Katra & Jammu")
+        st.caption("Select places to visit after darshan. Recommendations include verified history, entry fees, and video links.")
 
-            want_sightseeing = st.radio(
-                "Interested in sightseeing after darshan?",
-                ["No, skip this", "Yes, show me places"],
-                horizontal=True,
-                key="sightseeing_radio",
-            )
+        want_sightseeing = st.radio(
+            "Add sightseeing to itinerary?",
+            ["No, skip sightseeing", "Yes, choose places"],
+            horizontal=True,
+            key="sightseeing_radio",
+        )
 
-            if want_sightseeing == "No, skip this":
-                if st.button("Continue", type="primary", key="skip_sightseeing", use_container_width=True):
-                    st.session_state.sightseeing_decision = []
-                    st.rerun()
-            else:
-                categories = ["All"] + explore_data.get_categories()
-                chosen_cat = st.selectbox("Filter by category", categories, key="sightseeing_cat_filter")
-                places = coordinator.get_sightseeing_places(None if chosen_cat == "All" else chosen_cat)
+        if want_sightseeing == "No, skip sightseeing":
+            if st.button("Continue", key="skip_sightseeing", use_container_width=True):
+                st.session_state.sightseeing_decision = []
+                st.rerun()
+        else:
+            categories = ["All"] + explore_data.get_categories()
+            chosen_cat = st.selectbox("Category Filter", categories, key="sightseeing_cat_filter")
+            places = coordinator.get_sightseeing_places(None if chosen_cat == "All" else chosen_cat)
 
-                st.markdown("Select any places you'd like added to your itinerary:")
-                picked = []
-                for p in places:
-                    with st.container(border=True):
-                        render_place_image(p, height_px=140)
-                        checked = st.checkbox(
-                            f"**{p['name']}** · {p['category']} · {p['distance']}",
-                            key=f"sight_{p['name']}",
-                        )
-                        st.caption(p["description"])
-                        st.caption(f"🕐 {p.get('timings', 'Not confirmed')} · 🎟️ {p.get('entry_fee', 'Not confirmed')}")
-                        with st.expander("📜 Historical background"):
-                            st.write(p["historical_background"])
-                        st.markdown(f"[▶️ Watch videos of {p['name']}]({p['video_search']})")
-                        st.caption(f"🚕 Getting there: {explore_data.get_local_travel_note(p['category'])}")
-                        if checked:
-                            picked.append(p["name"])
+            picked = []
+            for p in places:
+                with st.container(border=True):
+                    render_place_image(p, height_px=140)
+                    checked = st.checkbox(
+                        f"**{p['name']}** · {p['category']} ({p['distance']})",
+                        key=f"sight_{p['name']}",
+                    )
+                    st.caption(p["description"])
+                    st.caption(f"Timings: {p.get('timings', 'Not confirmed')} · Entry: {p.get('entry_fee', 'Not confirmed')}")
+                    with st.expander("Historical Background"):
+                        st.write(p["historical_background"])
+                    st.markdown(f"[Watch Video Search Guide]({p['video_search']})")
+                    if checked:
+                        picked.append(p["name"])
 
-                if st.button("Continue with selected places", type="primary", key="confirm_sightseeing", use_container_width=True):
-                    st.session_state.sightseeing_decision = picked
-                    st.rerun()
-
-            if st.button("← Back", key="back_to_step3_from_sightseeing"):
-                st.session_state.hotel_decision = None
+            if st.button("Continue with selected places", key="confirm_sightseeing", use_container_width=True):
+                st.session_state.sightseeing_decision = picked
                 st.rerun()
 
-    # --- STEP 5: day-wise itinerary, built by the ItineraryAgent ---
+        if st.button("Back", key="back_to_step3_from_sightseeing"):
+            st.session_state.hotel_decision = None
+            st.rerun()
+
+    # --- STEP 5: Timeline Day-Card Itinerary ---
     elif st.session_state.selected_option and st.session_state.hotel_decision is not None and st.session_state.sightseeing_decision is not None and not st.session_state.itinerary_confirmed:
         bundle = st.session_state.selected_option
         pax, opt = bundle["pax"], bundle["option"]
@@ -798,32 +745,44 @@ with tab_book:
             opt, hotel=hotel, hotel_nights=hotel_nights, sightseeing_places=sightseeing_places
         )
 
-        with st.chat_message("assistant"):
-            st.markdown("**🗓️ Here's your day-wise itinerary:**")
-            for day in itinerary:
-                with st.container(border=True):
-                    st.markdown(f"**Day {day['day_number']} — {day['date']}**")
-                    st.caption(day["title"])
-                    for a in day["activities"]:
-                        st.write(f"- {a}")
+        st.markdown("### Day-Wise Itinerary")
+        st.caption("Your customized day-by-day travel schedule based on your exact transport and darshan choices.")
 
-            st.caption("This itinerary is a planning guide based on your choices — actual timing may vary.")
+        for day in itinerary:
+            with st.container(border=True):
+                st.markdown(
+                    f"""
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="background:#6E1423; color:#FFF; font-weight:700; font-size:0.78rem; padding:3px 12px; border-radius:12px; text-transform:uppercase;">
+                            DAY {day['day_number']:02d}
+                        </span>
+                        <span style="color:#6C5D5D; font-size:0.88rem; font-weight:600;">{day['date']}</span>
+                    </div>
+                    <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:1.1rem; color:#2B2222; margin-bottom:8px;">
+                        {day['title']}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                for a in day["activities"]:
+                    st.write(f"- {a}")
 
-            if st.button("Continue to payment", type="primary", key="confirm_itinerary", use_container_width=True):
-                st.session_state.itinerary_confirmed = True
-                st.rerun()
+        if st.button("Continue to review", key="confirm_itinerary", use_container_width=True):
+            st.session_state.itinerary_confirmed = True
+            st.rerun()
 
-            if st.button("← Back", key="back_to_step4_from_itinerary"):
-                st.session_state.sightseeing_decision = None
-                st.rerun()
+        if st.button("Back", key="back_to_step4_from_itinerary"):
+            st.session_state.sightseeing_decision = None
+            st.rerun()
 
-    # --- STEP 6: payment gateway, then confirm the booking ---
+    # --- STEP 6: Review & Authorize Booking ---
     elif st.session_state.selected_option:
         bundle = st.session_state.selected_option
         pax, opt = bundle["pax"], bundle["option"]
-        tr, s = opt["flight"], opt["slot"]
+        tr = opt.get("transport") or opt.get("flight")
+        s = opt["slot"]
         mode = tr.get("mode", "flight")
-        icon = MODE_ICON.get(mode, "🚗")
+        label = MODE_LABEL.get(mode, mode.title())
         hotel_choice = st.session_state.hotel_decision or {}
         hotel = hotel_choice.get("hotel")
         hotel_nights = hotel_choice.get("nights", 0)
@@ -831,59 +790,90 @@ with tab_book:
         grand_total = opt["total_price"] + hotel_cost
         sightseeing_places = st.session_state.sightseeing_decision or []
 
-        with st.chat_message("assistant"):
-            st.markdown("**Review & pay to confirm your booking:**")
-            with st.container(border=True):
-                st.write(f"{icon} {tr.get('operator', '-')} {tr.get('transport_no', '')} · {tr['origin']} → {tr['destination']} · {tr['travel_date']}")
-                st.write(f"🙏 {s['category']} · {s['slot_date']} at {fmt_time(s['slot_time'])}")
-                st.write(f"👥 {pax} pilgrim(s)")
-                if hotel:
-                    st.write(f"🏨 {hotel['name']} ({hotel['category']}) · {hotel_nights} night(s) · ₹{hotel_cost}")
-                else:
-                    st.write("🏨 No hotel added")
-                if sightseeing_places:
-                    st.write(f"🗺️ Planning to visit: {', '.join(sightseeing_places)}")
-                else:
-                    st.write("🗺️ No sightseeing planned")
+        st.markdown("### Review & Authorize Booking")
+        st.caption("Verify your booking summary and authorize AI execution.")
 
-            paid = payment.render_payment_form("Total for this booking:", grand_total)
+        with st.container(border=True):
+            st.write(f"**Transport:** {label} via {tr.get('operator', '-')} ({tr.get('transport_no', '-')}) · {tr['origin']} → {tr['destination']} ({tr['travel_date']})")
+            st.write(f"**Yatra Slot:** {s['category']} · {s['slot_date']} at {fmt_time(s['slot_time'])}")
+            st.write(f"**Passengers:** {pax} pilgrims")
+            if hotel:
+                st.write(f"**Accommodation:** {hotel['name']} ({hotel['category']}) · {hotel_nights} night(s) · ₹{hotel_cost}")
+            else:
+                st.write("**Accommodation:** None added")
+            if sightseeing_places:
+                st.write(f"**Sightseeing:** {', '.join(sightseeing_places)}")
 
-            if paid:
+        with st.container(border=True):
+            st.markdown("#### Human Authorization")
+            rpa_auth = st.checkbox("I confirm details & authorize AI RPA agent to execute booking", value=True, key="chk_rpa_auth")
+            run_rpa = st.checkbox("Run Playwright RPA visual automation demonstration", value=True, key="chk_run_rpa")
+
+        paid = payment.render_payment_form("Total amount for this booking:", grand_total)
+
+        if paid:
+            if not rpa_auth:
+                st.error("Human authorization required. Please check the authorization box above.")
+            else:
+                rpa_info = None
+                if run_rpa:
+                    with st.spinner("Playwright RPA Agent executing mock booking workflow..."):
+                        rpa_info = coordinator.execute_rpa_demo(
+                            user_name=st.session_state.guest_id,
+                            pax_count=pax,
+                            transport_text=f"{label} {tr.get('operator', '-')} {tr.get('transport_no', '')} from {tr['origin']}",
+                            slot_text=f"{s['category']} on {s['slot_date']} at {s['slot_time']}",
+                            total_price=grand_total,
+                            headless=True,
+                        )
+
                 booking_id, blessing = coordinator.confirm_booking(
                     opt, pax, st.session_state.guest_id,
                     hotel=hotel, hotel_nights=hotel_nights,
                     sightseeing_places=sightseeing_places,
                 )
                 st.balloons()
+
+                rpa_msg = ""
+                if rpa_info and rpa_info.get("status") == "SUCCESS":
+                    rpa_msg = f"\n\nPlaywright RPA Execution: Verified via browser agent (Ref: `{rpa_info['booking_id']}`)."
+
                 st.session_state.messages.append(
                     {
                         "role": "assistant",
-                        "content": f"{blessing}\n\nYour confirmation ID is **{booking_id}**. Total paid (mock): ₹{grand_total}.",
+                        "content": f"{blessing}\n\nYour confirmation ID is **{booking_id}**.{rpa_msg} Total paid (mock): ₹{grand_total}.",
                     }
                 )
+
+                if rpa_info and rpa_info.get("screenshot_path") and os.path.exists(rpa_info["screenshot_path"]):
+                    st.session_state["last_rpa_screenshot"] = rpa_info["screenshot_path"]
+
                 _reset_flow()
                 st.rerun()
 
-            if st.button("← Back", key="back_to_step5"):
-                st.session_state.itinerary_confirmed = False
-                st.rerun()
+        if st.button("Back", key="back_to_step5"):
+            st.session_state.itinerary_confirmed = False
+            st.rerun()
 
-    # --- STEP 1: pure conversation - no form, just chat (typed or spoken) ---
+    # --- STEP 1: Conversational Input ---
     else:
         def _process_trip_input(user_text):
             st.session_state.messages.append({"role": "user", "content": user_text})
-            with st.spinner("Checking slots, flights, trains & buses..."):
-                result = coordinator.process_trip_message(user_text, api_key=API_KEY)
+            current_req = st.session_state.get("trip_request")
+            with st.spinner("Checking slots, flights, trains and buses..."):
+                result = coordinator.process_trip_message(
+                    user_text,
+                    current_request=current_req,
+                    api_key=API_KEY,
+                    base_url=BASE_URL,
+                )
             plan = result["plan"]
+            st.session_state.trip_request = result.get("request")
             st.session_state.messages.append({"role": "assistant", "content": result["reply"]})
             if plan["status"] == "PLAN_READY":
                 st.session_state.pending_options = {"pax": plan["pax"], "options": plan["options"]}
             st.rerun()
 
-        # Handle a voice-transcribed message arriving via the query-param
-        # bridge (see render_voice_input's docstring). Processed once,
-        # then cleared, so a later rerun (e.g. clicking a button) doesn't
-        # resubmit the same spoken message again.
         incoming_voice_text = st.query_params.get("voice_input")
         if incoming_voice_text:
             st.query_params.pop("voice_input", None)
@@ -891,21 +881,22 @@ with tab_book:
             _process_trip_input(incoming_voice_text)
 
         render_voice_input()
-        if prompt := st.chat_input("Tell me about your trip — e.g. \"2 log Delhi se agle hafte, VIP darshan\" or \"Book 3 people from Mumbai next week\""):
+        if prompt := st.chat_input("Tell us about your trip — e.g., '2 people from Delhi next week by train for VIP darshan'"):
             _process_trip_input(prompt)
+
 
 with tab_explore:
     st.subheader("Yatra Essentials")
-    st.caption("Real, cross-checked pilgrim information — see README for exact sourcing.")
+    st.caption("Cross-checked pilgrim information and guidelines.")
 
-    with st.expander("🪔 Aarti timings (darshan pauses during these windows)"):
+    with st.expander("Aarti Timings (Darshan Pauses During These Windows)"):
         aarti = yatra_info.get_aarti_timings()
         st.write(f"**Morning:** {aarti['morning']['start']} – {aarti['morning']['end']} ({aarti['morning']['note']})")
-        st.write(f"**Evening (summer, Apr–Sep):** {aarti['evening_summer']['start']} – {aarti['evening_summer']['end']}")
-        st.write(f"**Evening (winter, Oct–Mar):** {aarti['evening_winter']['start']} – {aarti['evening_winter']['end']}")
+        st.write(f"**Evening (Summer, Apr–Sep):** {aarti['evening_summer']['start']} – {aarti['evening_summer']['end']}")
+        st.write(f"**Evening (Winter, Oct–Mar):** {aarti['evening_winter']['start']} – {aarti['evening_winter']['end']}")
         st.caption(aarti["general_note"])
 
-    with st.expander("📝 Yatra registration (mandatory for everyone)"):
+    with st.expander("Yatra Registration (Mandatory Requirement)"):
         reg = yatra_info.get_registration_info()
         st.write(f"**Cost:** {reg['cost']}")
         st.caption(reg["mandatory_note"])
@@ -917,28 +908,28 @@ with tab_explore:
             st.write(f"- {item}")
         st.warning(reg["reminder"])
 
-    with st.expander("🚶 Route options to Bhawan"):
+    with st.expander("Route Options to Bhawan"):
         for route in yatra_info.get_route_options():
             st.markdown(f"**{route['name']}** · {route['distance']} · {route['duration']}")
             st.caption(route["path"])
             st.write(route["notes"])
             st.divider()
 
-    with st.expander("🎒 Packing guidance"):
+    with st.expander("Packing Guidance"):
         packing = yatra_info.get_packing_guidance()
         st.caption(packing["disclaimer"])
         st.markdown("**Recommended:**")
         for item in packing["recommended"]:
             st.write(f"- {item}")
-        st.markdown("**Commonly restricted:**")
+        st.markdown("**Commonly Restricted:**")
         for item in packing["commonly_restricted"]:
             st.write(f"- {item}")
 
-    with st.expander("🏥 Free facilities along the route"):
+    with st.expander("Free Facilities Along Route"):
         for fac in yatra_info.get_facilities():
             st.write(f"**{fac['name']}** — {fac['note']}")
 
-    with st.expander("📞 Official helpline"):
+    with st.expander("Official Yatra Helpline"):
         helpline = yatra_info.get_helpline()
         st.write(f"**{helpline['official_yatra_helpline']}**")
         st.caption(helpline["note"])
@@ -948,15 +939,15 @@ with tab_explore:
     st.subheader("Getting from Jammu to Katra")
     taxi = explore_data.get_taxi_info()
     with st.container(border=True):
-        st.markdown(f"🚕 **{taxi['route']}** · {taxi['distance']} · {taxi['duration']}")
+        st.markdown(f"**Route:** {taxi['route']} ({taxi['distance']}, {taxi['duration']})")
         for opt_taxi in taxi["options"]:
-            st.write(f"- {opt_taxi['vehicle']} (up to {opt_taxi['capacity']}): {opt_taxi['fare_range']}")
+            st.write(f"- {opt_taxi['vehicle']} ({opt_taxi['capacity']}): {opt_taxi['fare_range']}")
         st.caption(taxi["note"])
 
-    st.subheader("Places to see around Katra & Jammu")
+    st.subheader("Places to See Around Katra & Jammu")
     st.caption(
-        "Informational only — not bookable through this app. Click any place to see full "
-        "details: timings, entry fees, history, and a video link."
+        "Informational guidance — not bookable through this application. Select any place to view "
+        "timings, entry fees, verified history, and video guides."
     )
 
     if "selected_explore_place" not in st.session_state:
@@ -964,32 +955,32 @@ with tab_explore:
 
     if st.session_state.selected_explore_place:
         p = explore_data.get_place_by_name(st.session_state.selected_explore_place)
-        if st.button("← Back to all places", key="back_to_places_grid"):
+        if st.button("Back to all places", key="back_to_places_grid"):
             st.session_state.selected_explore_place = None
             st.rerun()
 
         with st.container(border=True):
             render_place_image(p, height_px=260)
-            st.markdown(f'<div class="place-card-title" style="font-size:1.5rem;">{p["name"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="place-card-title" style="font-size:1.4rem; color:#6E1423;">{p["name"]}</div>', unsafe_allow_html=True)
             st.markdown(f'<span class="place-cat">{p["category"]}</span> · {p["distance"]}', unsafe_allow_html=True)
             st.write("")
             st.write(p["description"])
 
             col1, col2 = st.columns(2)
             with col1:
-                st.markdown(f"**🕐 Timings**\n\n{p.get('timings', 'Not confirmed')}")
+                st.markdown(f"**Timings:** {p.get('timings', 'Not confirmed')}")
             with col2:
-                st.markdown(f"**🎟️ Entry**\n\n{p.get('entry_fee', 'Not confirmed')}")
+                st.markdown(f"**Entry:** {p.get('entry_fee', 'Not confirmed')}")
 
-            st.markdown("**📜 Historical background**")
+            st.markdown("**Historical Background**")
             st.write(p["historical_background"])
 
-            st.markdown(f"[▶️ Watch videos of {p['name']}]({p['video_search']})")
-            st.caption(f"🚕 Getting there: {explore_data.get_local_travel_note(p['category'])}")
+            st.markdown(f"[Watch Video Guide]({p['video_search']})")
+            st.caption(f"Local Travel Note: {explore_data.get_local_travel_note(p['category'])}")
 
     else:
         categories = ["All"] + explore_data.get_categories()
-        chosen = st.selectbox("Filter by category", categories, key="explore_tab_cat_filter")
+        chosen = st.selectbox("Filter by Category", categories, key="explore_tab_cat_filter")
         places = explore_data.get_places(None if chosen == "All" else chosen)
 
         cols = st.columns(3)
@@ -997,9 +988,10 @@ with tab_explore:
             with cols[i % 3]:
                 with st.container(border=True):
                     render_place_image(p, height_px=110)
-                    st.markdown(f'<div class="place-card-title" style="font-size:0.95rem;">{p["name"]}</div>', unsafe_allow_html=True)
-                    st.markdown(f'<span class="place-cat" style="font-size:0.7rem;">{p["category"]}</span>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="place-card-title" style="font-size:0.95rem; color:#6E1423;">{p["name"]}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<span class="place-cat" style="font-size:0.75rem;">{p["category"]}</span>', unsafe_allow_html=True)
                     st.caption(p["distance"])
                     if st.button("View details", key=f"view_{p['name']}", use_container_width=True):
                         st.session_state.selected_explore_place = p["name"]
                         st.rerun()
+

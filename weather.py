@@ -130,3 +130,10 @@ def get_weather(date_str):
             return live
 
     return _seasonal_fallback(target_date)
+
+
+def get_weather_summary(location="Katra"):
+    """Returns today's or default seasonal weather summary for Katra."""
+    today_str = date.today().isoformat()
+    return get_weather(today_str)
+

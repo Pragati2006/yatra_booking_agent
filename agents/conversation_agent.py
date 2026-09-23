@@ -35,7 +35,7 @@ DEVOTIONAL_CONFIRMATIONS = [
 
 
 def _has_llm():
-    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+    return bool(os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"))
 
 
 def greeting():
@@ -46,52 +46,66 @@ def confirmation_blessing():
     return random.choice(DEVOTIONAL_CONFIRMATIONS)
 
 
-def understand_request(user_text, api_key=None):
+def understand_request(user_text, current_request=None, api_key=None, base_url=None):
     """Returns a structured trip request dict (pax, origin, category,
     mode, start_date, end_date) - same shape build_plan() expects,
-    regardless of which mode produced it."""
-    if api_key:
+    regardless of which mode produced it, merging with current_request if present."""
+    key = api_key or os.environ.get("OPENAI_API_KEY")
+    if key:
         try:
-            return _understand_with_llm(user_text, api_key)
+            return _understand_with_llm(user_text, current_request=current_request, api_key=key, base_url=base_url)
         except Exception:
             pass  # fall back safely rather than breaking the conversation
-    return legacy_agent.parse_request(user_text)
+    new_req = legacy_agent.parse_request(user_text)
+    return legacy_agent.merge_requests(current_request, new_req, text=user_text)
 
 
-def _understand_with_llm(user_text, api_key):
+def _understand_with_llm(user_text, current_request=None, api_key=None, base_url=None):
     from datetime import date
+    from openai import OpenAI
 
-    from anthropic import Anthropic
+    url = base_url or os.environ.get("OPENAI_BASE_URL", None)
+    model_name = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 
-    client = Anthropic(api_key=api_key)
+    client = OpenAI(api_key=api_key, base_url=url) if url else OpenAI(api_key=api_key)
     today = date.today().isoformat()
+    prev_state_str = json.dumps(current_request) if current_request else "None"
 
     system = f"""Extract Vaishno Devi yatra trip details from the pilgrim's message as JSON only.
 The message may be in Hindi, Hinglish, English, or another language - understand it regardless of language.
-Today's date is {today}. Fields: pax (integer, default 1), origin (Indian city name in English, or null),
+Today's date is {today}.
+Previous trip request state: {prev_state_str}
+If previous state exists, update and merge any new/clarified details from the message into that state.
+Fields: pax (integer, default 1), origin (Indian city name in English, or null),
 category (one of "Normal Darshan","VIP Darshan","Helicopter Darshan", or null),
 mode (one of "flight","train","bus", or null if no preference stated),
+duration_days (integer or null), season (string or null), sightseeing (boolean),
 start_date (YYYY-MM-DD), end_date (YYYY-MM-DD). If no dates mentioned, use the next 14 days.
-Respond with ONLY the JSON object, no other text."""
+Respond with ONLY valid JSON, no markdown or extra text."""
 
-    resp = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=300,
-        system=system,
-        messages=[{"role": "user", "content": user_text}],
+    resp = client.chat.completions.create(
+        model=model_name,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_text},
+        ],
+        temperature=0.1,
     )
-    raw = "".join(b.text for b in resp.content if b.type == "text")
-    raw = raw.strip().strip("`").replace("json", "", 1) if raw.strip().startswith("```") else raw
-    return json.loads(raw)
+    raw = resp.choices[0].message.content.strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`").replace("json", "", 1).strip()
+    parsed = json.loads(raw)
+    return legacy_agent.merge_requests(current_request, parsed, text=user_text)
 
 
-def craft_reply(user_text, plan_status, context, api_key=None):
+def craft_reply(user_text, plan_status, context, api_key=None, base_url=None):
     """Generates the natural-language reply shown to the pilgrim,
     adapted to their language if an LLM is available, with devotional
     tone woven in. Falls back to plain templated English otherwise."""
-    if api_key:
+    key = api_key or os.environ.get("OPENAI_API_KEY")
+    if key:
         try:
-            return _craft_reply_with_llm(user_text, plan_status, context, api_key)
+            return _craft_reply_with_llm(user_text, plan_status, context, key, base_url)
         except Exception:
             pass
     return _craft_reply_template(plan_status, context)
@@ -111,20 +125,26 @@ def _craft_reply_template(plan_status, context):
     return templates.get(plan_status, "🙏 Jai Mata Di! Let me know how I can help with your yatra.")
 
 
-def _craft_reply_with_llm(user_text, plan_status, context, api_key):
-    from anthropic import Anthropic
+def _craft_reply_with_llm(user_text, plan_status, context, api_key, base_url=None):
+    from openai import OpenAI
 
-    client = Anthropic(api_key=api_key)
+    url = base_url or os.environ.get("OPENAI_BASE_URL", None)
+    model_name = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+
+    client = OpenAI(api_key=api_key, base_url=url) if url else OpenAI(api_key=api_key)
     system = """You are a warm, respectful assistant helping pilgrims plan a Vaishno Devi yatra.
 Reply in the SAME language/style the pilgrim used in their message (Hindi, Hinglish, English, etc).
 Keep replies short (2-3 sentences), naturally include a respectful devotional touch such as
 "Jai Mata Di" where it fits, and never invent booking details not present in the context provided."""
 
     user_msg = f"Pilgrim's message: {user_text}\nSearch result status: {plan_status}\nContext: {context}"
-    resp = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=200,
-        system=system,
-        messages=[{"role": "user", "content": user_msg}],
+    resp = client.chat.completions.create(
+        model=model_name,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_msg},
+        ],
+        temperature=0.3,
     )
-    return "".join(b.text for b in resp.content if b.type == "text").strip()
+    return resp.choices[0].message.content.strip()
+

@@ -20,7 +20,25 @@ from datetime import date, datetime, timedelta
 
 import db
 
-ORIGIN_CITIES = ["delhi", "mumbai", "bangalore", "bengaluru", "chennai", "kolkata", "ahmedabad"]
+# Regional zone mapping connecting Indian regions/states/cities to supported dataset hubs
+REGION_TO_HUB = {
+    # Gujarat / West Coast -> Ahmedabad
+    "surat": "Ahmedabad", "vadodara": "Ahmedabad", "rajkot": "Ahmedabad", "gujarat": "Ahmedabad",
+    # Maharashtra / West -> Mumbai
+    "pune": "Mumbai", "nashik": "Mumbai", "nagpur": "Mumbai", "aurangabad": "Mumbai", "maharashtra": "Mumbai",
+    # North & Central India -> Delhi
+    "jaipur": "Delhi", "jodhpur": "Delhi", "udaipur": "Delhi", "rajasthan": "Delhi",
+    "lucknow": "Delhi", "kanpur": "Delhi", "varanasi": "Delhi", "agra": "Delhi", "up": "Delhi", "uttar pradesh": "Delhi",
+    "bhopal": "Delhi", "indore": "Delhi", "gwalior": "Delhi", "jabalpur": "Delhi", "mp": "Delhi", "madhya pradesh": "Delhi",
+    "chandigarh": "Delhi", "amritsar": "Delhi", "ludhiana": "Delhi", "jalandhar": "Delhi", "punjab": "Delhi", "haryana": "Delhi",
+    # South India -> Bangalore or Chennai
+    "kochi": "Bangalore", "trivandrum": "Bangalore", "calicut": "Bangalore", "kerala": "Bangalore",
+    "hyderabad": "Bangalore", "secunderabad": "Bangalore", "telangana": "Bangalore", "andhra": "Bangalore",
+    "coimbatore": "Chennai", "madurai": "Chennai", "tamil nadu": "Chennai",
+    # East India -> Kolkata
+    "patna": "Kolkata", "ranchi": "Kolkata", "bhubaneswar": "Kolkata", "odisha": "Kolkata", "bihar": "Kolkata",
+}
+
 CATEGORY_KEYWORDS = {
     "helicopter": "Helicopter Darshan",
     "heli": "Helicopter Darshan",
@@ -34,21 +52,6 @@ MODE_KEYWORDS = {
 
 MAX_OPTIONS = 3  # how many ranked combinations to show for review
 
-# Real-world buffers, used so a combination is never proposed that would
-# require a pilgrim to be in two places at once (e.g. landing at 6 AM and
-# having a darshan slot at 6 AM the same morning).
-#  - Flights land at Jammu Airport, not Katra - reaching Katra needs the
-#    Jammu-Katra taxi leg (~1.5-2 hrs; see explore_data.py's researched
-#    fares). Trains (into Katra's own SVDK station) and buses (direct to
-#    Katra) don't need this extra leg.
-#  - From Katra, Normal/VIP Darshan requires the ~12-13 km trek, commonly
-#    5-9 hours one-way for an average pilgrim - but that's pure walking
-#    time. A realistic buffer also needs to account for arrival fatigue,
-#    food/rest breaks, and queueing at Bhawan, so this is set toward the
-#    higher end (10h) rather than the optimistic low end, to avoid
-#    proposing combinations that are only technically possible on paper.
-#    Helicopter Darshan cuts the trek to a short flight plus walk, but
-#    still needs check-in, security, and queueing time.
 JAMMU_TO_KATRA_BUFFER_HOURS = 2
 DARSHAN_PREP_BUFFER_HOURS = {
     "Helicopter Darshan": 3,
@@ -58,7 +61,7 @@ DARSHAN_PREP_BUFFER_HOURS = {
 
 
 def _use_llm():
-    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+    return bool(os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"))
 
 
 def _extract_pax(text):
@@ -69,10 +72,37 @@ def _extract_pax(text):
 
 
 def _extract_origin(text):
-    t = text.lower()
-    for city in ORIGIN_CITIES:
-        if city in t:
-            return "Bangalore" if city == "bengaluru" else city.capitalize()
+    t = text.strip()
+    m = re.search(
+        r"\b(?:from|out of|leaving|travelling from|traveling from|departing from|starting from)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)",
+        t,
+        re.IGNORECASE,
+    )
+    if m:
+        candidate = m.group(1).strip()
+        stop_words = {
+            "the", "a", "an", "my", "our", "here", "there", "home", "katra", "jammu",
+            "next", "this", "last", "for", "with", "by", "in", "during", "and", "to", "or",
+            "travelling", "traveling", "visiting", "going", "planning"
+        }
+        words = candidate.split()
+        clean_words = []
+        for w in words:
+            if w.lower() in stop_words:
+                break
+            clean_words.append(w.capitalize())
+        if clean_words:
+            res = " ".join(clean_words)
+            if res.lower() not in ["katra", "jammu"] and len(res) >= 3:
+                return res
+
+    words = [w for w in re.findall(r"\b[A-Za-z]+\b", t) if w.lower() not in {
+        "hi", "hello", "yes", "no", "ok", "please", "pax", "people", "person", "pilgrim", "pilgrims",
+        "days", "day", "train", "flight", "bus", "vip", "darshan", "yatra", "help", "thanks"
+    }]
+    if len(words) == 1 and len(words[0]) >= 3:
+        return words[0].capitalize()
+
     return None
 
 
@@ -89,42 +119,128 @@ def _extract_mode(text):
     for kw, mode in MODE_KEYWORDS.items():
         if kw in t:
             return mode
-    return None  # no preference -> show a diversified mix
+    return None
+
+
+def _extract_duration(text):
+    m = re.search(r"(\d+)\s*days?", text.lower())
+    if m:
+        return int(m.group(1))
+    return None
+
+
+def _extract_season(text):
+    t = text.lower()
+    if "navratri" in t:
+        return "Navratri"
+    if "diwali" in t:
+        return "Diwali"
+    return None
+
+
+def _extract_sightseeing(text):
+    t = text.lower()
+    keywords = ["nearby places", "sightseeing", "visit places", "tourist spots", "places to see", "explore nearby"]
+    return any(kw in t for kw in keywords)
 
 
 def _extract_date_range(text):
     t = text.lower()
     today = date.today()
+    dur = _extract_duration(text)
     if "next week" in t:
         start = today + timedelta(days=7)
-        end = start + timedelta(days=6)
     elif "this week" in t:
         start = today
-        end = today + timedelta(days=6)
     elif "next month" in t:
         start = today + timedelta(days=30)
-        end = start + timedelta(days=6)
     else:
         start = today
-        end = today + timedelta(days=14)
+
+    span_days = dur - 1 if dur and dur > 1 else 13
+    end = start + timedelta(days=span_days)
     return start.isoformat(), end.isoformat()
 
 
-def parse_request(text):
+def parse_request(text, current_request=None):
     """Rule-based extraction of a structured trip request from free text."""
-    return {
-        "pax": _extract_pax(text),
+    pax_val = _extract_pax(text) if re.search(r"(\d+)\s*(people|pax|person|persons|members|pilgrims)", text.lower()) else None
+    parsed = {
+        "pax": pax_val if pax_val is not None else 1,
         "origin": _extract_origin(text),
         "category": _extract_category(text),
         "mode": _extract_mode(text),
+        "duration_days": _extract_duration(text),
+        "season": _extract_season(text),
+        "sightseeing": _extract_sightseeing(text),
         "start_date": _extract_date_range(text)[0],
         "end_date": _extract_date_range(text)[1],
     }
+    return merge_requests(current_request, parsed, text)
+
+
+def merge_requests(old_req, new_req, text=""):
+    """Merges newly extracted trip details into an existing request state."""
+    if not old_req:
+        res = dict(new_req)
+        res["pax"] = res.get("pax") or 1
+        return res
+
+    merged = dict(old_req)
+    for k, v in new_req.items():
+        if v is not None:
+            if merged.get(k) is None:
+                merged[k] = v
+            elif k in ("origin", "category", "mode", "season", "duration_days") and v:
+                merged[k] = v
+            elif k == "pax" and v != 1:
+                merged[k] = v
+            elif k == "sightseeing" and v:
+                merged[k] = True
+
+    dur = _extract_duration(text)
+    if dur:
+        merged["duration_days"] = dur
+        try:
+            st_date = datetime.strptime(merged.get("start_date", date.today().isoformat()), "%Y-%m-%d").date()
+            merged["end_date"] = (st_date + timedelta(days=dur - 1)).isoformat()
+        except Exception:
+            pass
+
+    season = _extract_season(text)
+    if season:
+        merged["season"] = season
+
+    if _extract_sightseeing(text):
+        merged["sightseeing"] = True
+
+    return merged
+
+
+def resolve_hub(origin):
+    """Dynamically resolves an origin city to a supported dataset hub if direct transport is not available."""
+    if not origin:
+        return None, False
+
+    supported_hubs = db.get_distinct_origins()
+    supported_map = {h.lower(): h for h in supported_hubs}
+
+    # Direct match in dataset
+    if origin.lower() in supported_map:
+        return supported_map[origin.lower()], True
+
+    # Check regional zone mapping to a supported hub
+    mapped = REGION_TO_HUB.get(origin.lower())
+    if mapped and mapped.lower() in supported_map:
+        return supported_map[mapped.lower()], False
+
+    return None, False
 
 
 def _search_transport(request):
-    """Searches whichever modes are relevant and returns one combined list."""
-    origin, start, end, pax = request["origin"], request["start_date"], request["end_date"], request["pax"]
+    """Searches whichever modes are relevant and returns (combined_results, is_direct_flag)."""
+    origin = request["origin"]
+    start, end, pax = request["start_date"], request["end_date"], request["pax"]
     mode = request.get("mode")
 
     searchers = {
@@ -134,10 +250,35 @@ def _search_transport(request):
     }
     modes_to_search = [mode] if mode in searchers else list(searchers.keys())
 
-    results = []
+    # 1. First search for direct transport
+    direct_results = []
     for m in modes_to_search:
-        results.extend(searchers[m](origin, start, end, min_seats=pax))
-    return results
+        direct_results.extend(searchers[m](origin, start, end, min_seats=pax))
+
+    if direct_results:
+        for r in direct_results:
+            r["is_connecting"] = False
+            r["origin"] = origin
+        return direct_results, True
+
+    # 2. If direct transport unavailable, resolve regional hub
+    hub, is_direct = resolve_hub(origin)
+    if hub:
+        connecting_results = []
+        for m in modes_to_search:
+            res = searchers[m](hub, start, end, min_seats=pax)
+            for r in res:
+                r["is_connecting"] = True
+                r["connecting_hub"] = hub
+                r["original_origin"] = origin
+                r["origin"] = origin  # Preserve exact user's origin
+                r["route_note"] = f"Connecting via {hub}"
+                r["display_route"] = f"{origin} → Katra (via {hub})"
+            connecting_results.extend(res)
+        return connecting_results, False
+
+    # 3. Unsupported origin -> return empty list (no fabricated data)
+    return [], False
 
 
 def _transport_arrival_datetime(tr):
@@ -176,16 +317,28 @@ def build_plan(request):
         request["start_date"], request["end_date"],
         category=request.get("category"), min_seats=request["pax"]
     )
-    transport = _search_transport(request)
+    transport, is_direct_transport = _search_transport(request)
 
     if not slots or not transport:
         mode_note = f" by {request['mode']}" if request.get("mode") else ""
+        if not transport:
+            supported_hubs = db.get_distinct_origins()
+            msg = (
+                f"Transport availability from {request['origin']} is not represented in the current prototype dataset. "
+                f"Supported major departure hubs include: {', '.join(supported_hubs)}. "
+                "You can search travel from one of these hubs to plan your yatra."
+            )
+        else:
+            msg = (
+                f"I couldn't find matching yatra slots{mode_note} for those dates. "
+                "Want me to widen the date range or try a different mode of transport?"
+            )
         return {
             "status": "NO_AVAILABILITY",
-            "message": f"I couldn't find matching yatra slots and travel options{mode_note} for those dates. "
-                       "Want me to widen the date range or try a different mode of transport?",
+            "message": msg,
             "slots_found": len(slots),
             "flights_found": len(transport),
+            "unsupported_origin": request.get("origin") if not transport else None,
         }
 
     # Rank every valid combination by cheapest total, but only combinations
@@ -200,7 +353,9 @@ def build_plan(request):
             earliest_possible_darshan = arrival + timedelta(hours=buffer_hours)
             if _slot_datetime(s) >= earliest_possible_darshan:
                 total = (tr["price"] + s["price"]) * request["pax"]
-                combos.append({"flight": tr, "slot": s, "total_price": total})
+                combos.append({"flight": tr, "transport": tr, "slot": s, "total_price": total})
+
+
 
     if not combos:
         return {
@@ -272,39 +427,50 @@ def confirm_booking(option, pax, user_name, hotel=None, hotel_nights=0, sightsee
 
 
 # ---------------------------------------------------------------------
-# Optional: LLM-powered mode. Only activates if ANTHROPIC_API_KEY is set.
+# LLM-powered mode: GPT-OSS / OpenAI compatible
 # ---------------------------------------------------------------------
 
-def parse_request_llm(text, api_key):
+def parse_request_llm(text, api_key=None, base_url=None):
     import json
-    from anthropic import Anthropic
+    from openai import OpenAI
 
-    client = Anthropic(api_key=api_key)
+    key = api_key or os.environ.get("OPENAI_API_KEY", "dummy_key")
+    url = base_url or os.environ.get("OPENAI_BASE_URL", None)
+    model_name = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+
+    client = OpenAI(api_key=key, base_url=url) if url else OpenAI(api_key=key)
     today = date.today().isoformat()
 
-    system = f"""Extract yatra trip details from the user's message as JSON only.
-Today's date is {today}. Fields: pax (integer, default 1), origin (city name or null),
-category (one of "Normal Darshan","VIP Darshan","Helicopter Darshan", or null),
-mode (one of "flight","train","bus", or null if no preference stated),
-start_date (YYYY-MM-DD), end_date (YYYY-MM-DD). If no dates mentioned, use the next 14 days.
-Respond with ONLY the JSON object, no other text."""
+    system = f"""Extract Vaishno Devi yatra trip details from the user's message as JSON only.
+Today's date is {today}. Fields:
+- pax (integer, default 1)
+- origin (Indian city name in English or null)
+- category (one of "Normal Darshan", "VIP Darshan", "Helicopter Darshan", or null)
+- mode (one of "flight", "train", "bus", or null if no preference)
+- start_date (YYYY-MM-DD)
+- end_date (YYYY-MM-DD)
+If no dates mentioned, use the next 14 days.
+Respond with ONLY valid JSON, no markdown formatting or extra text."""
 
-    resp = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=300,
-        system=system,
-        messages=[{"role": "user", "content": text}],
+    resp = client.chat.completions.create(
+        model=model_name,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": text},
+        ],
+        temperature=0.1,
     )
-    raw = "".join(b.text for b in resp.content if b.type == "text")
-    raw = raw.strip().strip("`").replace("json", "", 1) if raw.strip().startswith("```") else raw
+    raw = resp.choices[0].message.content.strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`").replace("json", "", 1).strip()
     return json.loads(raw)
 
 
-def process_message(text, api_key=None):
+def process_message(text, api_key=None, base_url=None):
     """Single entry point the Streamlit UI calls. Returns a structured plan dict."""
-    if api_key:
+    if api_key or os.environ.get("OPENAI_API_KEY"):
         try:
-            request = parse_request_llm(text, api_key)
+            request = parse_request_llm(text, api_key, base_url)
         except Exception:
             request = parse_request(text)
     else:
@@ -313,3 +479,4 @@ def process_message(text, api_key=None):
     plan = build_plan(request)
     plan["_request"] = request
     return plan
+

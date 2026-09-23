@@ -137,8 +137,10 @@ def search_trains(origin, start_date, end_date, min_seats=1):
     records = result.to_dict("records")
     for r in records:
         r["mode"] = "train"
+        r["operator"] = "Indian Railways"
         r["transport_no"] = f'{r.pop("train_no")} ({r.pop("travel_class")})'
     return records
+
 
 
 def search_buses(origin, start_date, end_date, min_seats=1):
