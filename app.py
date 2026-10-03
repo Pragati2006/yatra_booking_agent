@@ -228,98 +228,225 @@ def get_base_url():
 
 st.set_page_config(page_title="Vaishno Devi Yatra Agent", page_icon="🛕", layout="wide")
 
-# --- Custom styling for Vaishno Devi Yatra AI ---
+# --- Custom styling for Vaishno Devi Yatra AI (Travel Platform Aesthetic) ---
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap');
 
     :root {
         --bg-main: #FAF7F2;
         --card-bg: #FFFFFF;
         --burgundy-dark: #4A0D17;
         --burgundy: #6E1423;
-        --burgundy-light: #8E1E2E;
-        --gold-accent: #C9A227;
-        --gold-subtle: #F3E9D2;
-        --text-primary: #2B2222;
-        --text-muted: #6C5D5D;
-        --border-color: #EBE3D5;
+        --burgundy-light: #A61B29;
+        --gold-accent: #D4AF37;
+        --gold-subtle: #FDF8EC;
+        --gold-border: #E8C874;
+        --text-primary: #1F1717;
+        --text-muted: #665757;
+        --border-color: #E8E0D2;
+        --shadow-sm: 0 2px 8px rgba(110, 20, 35, 0.04);
+        --shadow-md: 0 6px 20px rgba(110, 20, 35, 0.08);
     }
 
     html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
         font-size: 15px;
         color: var(--text-primary);
+        background-color: var(--bg-main);
     }
 
     .stApp {
         background-color: var(--bg-main);
     }
 
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+    }
+
     .block-container {
-        max-width: 1180px;
+        max-width: 1200px;
         padding-top: 1.5rem;
         padding-bottom: 3rem;
     }
 
-    /* Header & Brand */
-    .brand-title {
-        font-family: 'Poppins', sans-serif;
-        font-size: 2.2rem;
-        font-weight: 800;
-        color: var(--burgundy);
-        letter-spacing: -0.02em;
-        margin-bottom: 0.2rem;
-    }
-
-    .hero-subtext {
-        font-size: 1.05rem;
-        color: var(--text-muted);
-        font-weight: 400;
+    /* --- TOP NAVIGATION BAR --- */
+    .travel-navbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #FFFFFF;
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 0.8rem 1.4rem;
         margin-bottom: 1.5rem;
-        max-width: 750px;
+        box-shadow: var(--shadow-sm);
     }
 
-    /* Capability Cards */
+    .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .nav-logo {
+        font-size: 1.8rem;
+        background: var(--gold-subtle);
+        border: 1px solid var(--gold-border);
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .nav-title-group {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.1;
+    }
+
+    .nav-title-main {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-weight: 800;
+        font-size: 1.15rem;
+        color: var(--burgundy);
+        letter-spacing: 0.03em;
+    }
+
+    .nav-title-sub {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--gold-accent);
+        letter-spacing: 0.18em;
+    }
+
+    .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+    }
+
+    .nav-item {
+        color: var(--text-muted);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: color 0.15s ease;
+    }
+
+    .nav-item:hover, .nav-item.active {
+        color: var(--burgundy);
+    }
+
+    .nav-user {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .user-pill {
+        background: var(--gold-subtle);
+        border: 1px solid var(--gold-border);
+        color: #5C4314;
+        font-size: 0.8rem;
+        font-weight: 700;
+        padding: 5px 14px;
+        border-radius: 999px;
+    }
+
+    /* --- HERO BANNER --- */
+    .hero-banner {
+        position: relative;
+        background: linear-gradient(135deg, #4A0D17 0%, #6E1423 50%, #3B1F1F 100%);
+        border-radius: 20px;
+        padding: 2.8rem 2.4rem;
+        color: #FFFFFF;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(110, 20, 35, 0.18);
+        overflow: hidden;
+    }
+
+    .hero-banner::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, rgba(212, 175, 55, 0.25) 0%, rgba(110, 20, 35, 0) 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .hero-badge {
+        display: inline-block;
+        background: rgba(212, 175, 55, 0.2);
+        border: 1px solid rgba(212, 175, 55, 0.4);
+        color: #FDF8EC;
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 4px 14px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 1rem;
+    }
+
+    .hero-title {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 2.4rem;
+        font-weight: 800;
+        color: #FFFFFF;
+        line-height: 1.25;
+        margin-bottom: 0.8rem;
+        max-width: 780px;
+    }
+
+    .hero-subtitle {
+        font-size: 1.05rem;
+        color: #F3E9D2;
+        font-weight: 400;
+        line-height: 1.5;
+        max-width: 720px;
+        margin-bottom: 1.6rem;
+    }
+
     .capability-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 16px;
-        margin-bottom: 1.8rem;
+        margin-top: 1rem;
     }
     @media (max-width: 768px) {
         .capability-grid { grid-template-columns: 1fr; }
+        .nav-links { display: none; }
+        .hero-title { font-size: 1.8rem; }
     }
 
     .cap-card {
-        background: var(--card-bg);
-        border: 1px solid var(--border-color);
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 12px;
-        padding: 1.2rem 1.3rem;
-        box-shadow: 0 2px 8px rgba(110,20,35,0.04);
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .cap-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(110,20,35,0.08);
+        padding: 1rem 1.2rem;
     }
 
     .cap-title {
-        font-family: 'Poppins', sans-serif;
         font-weight: 700;
-        font-size: 0.92rem;
-        color: var(--burgundy);
+        font-size: 0.85rem;
+        color: #FDF8EC;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.05em;
         margin-bottom: 4px;
     }
 
     .cap-desc {
-        font-size: 0.88rem;
-        color: var(--text-muted);
-        font-weight: 500;
+        font-size: 0.85rem;
+        color: #E8D9C5;
+        font-weight: 400;
     }
 
     /* Step Pills */
@@ -404,9 +531,7 @@ st.markdown(
 )
 
 
-# --- One-time DB setup. build_database() checks each dataset file
-# individually and only (re)builds what's actually missing, so it's
-# safe and cheap to call on every run. ---
+# --- One-time DB setup ---
 with st.spinner("Setting up mock yatra, flight, train & bus data..."):
     build_database()
 
@@ -415,28 +540,59 @@ BASE_URL = get_base_url()
 
 MODE_LABEL = {"flight": "Flight", "train": "Train", "bus": "Bus"}
 
-# --- Hero Section: Compact, Brand-Focused ---
+# --- Session state guest initialization ---
+guest_name = st.session_state.get("guest_id", "Guest-" + uuid.uuid4().hex[:5].upper())
+if "guest_id" not in st.session_state:
+    st.session_state.guest_id = guest_name
+
+# --- STAGE 1: Top Navigation Header ---
 st.markdown(
-    """
-    <div style="margin-bottom: 1.4rem;">
-        <div class="brand-title">VAISHNO DEVI YATRA AI</div>
-        <div class="hero-subtext">
-            Your intelligent travel companion for planning travel, darshan, stays and sightseeing across Jammu & Kashmir.
+    f"""
+    <div class="travel-navbar">
+        <div class="nav-brand">
+            <div class="nav-logo">🛕</div>
+            <div class="nav-title-group">
+                <span class="nav-title-main">VAISHNO DEVI</span>
+                <span class="nav-title-sub">YATRA AI</span>
+            </div>
+        </div>
+        <div class="nav-links">
+            <span class="nav-item active">Plan Yatra</span>
+            <span class="nav-item">Explore J&K</span>
+            <span class="nav-item">Yatra Guide</span>
+            <span class="nav-item">Helpline</span>
+        </div>
+        <div class="nav-user">
+            <span class="user-pill">👤 {guest_name}</span>
         </div>
     </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-    <div class="capability-grid">
-        <div class="cap-card">
-            <div class="cap-title">1. PLAN YOUR YATRA</div>
-            <div class="cap-desc">Travel + Darshan + Stay</div>
-        </div>
-        <div class="cap-card">
-            <div class="cap-title">2. DISCOVER J&K</div>
-            <div class="cap-desc">Sightseeing + History + Local Tips</div>
-        </div>
-        <div class="cap-card">
-            <div class="cap-title">3. SMART ASSISTANCE</div>
-            <div class="cap-desc">Personalized recommendations + itinerary</div>
+# --- STAGE 2: Travel Platform Hero Banner ---
+st.markdown(
+    """
+    <div class="hero-banner">
+        <div class="hero-badge">✨ AI-Powered Tourism & Pilgrimage Platform</div>
+        <h1 class="hero-title">Plan Your Sacred Vaishno Devi Yatra with AI</h1>
+        <p class="hero-subtitle">
+            Plan travel from any city, search verified transport and darshan slots, discover Jammu & Kashmir destinations, 
+            and generate personalized day-by-day itineraries with 24/7 intelligent assistance.
+        </p>
+        <div class="capability-grid">
+            <div class="cap-card">
+                <div class="cap-title">1. Smart Yatra Booking</div>
+                <div class="cap-desc">Flights, trains, buses + darshan slots</div>
+            </div>
+            <div class="cap-card">
+                <div class="cap-title">2. J&K Tourism Discovery</div>
+                <div class="cap-desc">Katra, Patnitop, Kashmir & history</div>
+            </div>
+            <div class="cap-card">
+                <div class="cap-title">3. Dynamic Itineraries</div>
+                <div class="cap-desc">Custom day-by-day travel timelines</div>
+            </div>
         </div>
     </div>
     """,
@@ -445,24 +601,77 @@ st.markdown(
 
 
 
-# --- Session state ---
-if "guest_id" not in st.session_state:
-    st.session_state.guest_id = "Guest-" + uuid.uuid4().hex[:5].upper()
 
-if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": coordinator.get_greeting()}]
-if "trip_request" not in st.session_state:
-    st.session_state.trip_request = None
-if "pending_options" not in st.session_state:
-    st.session_state.pending_options = None
-if "selected_option" not in st.session_state:
-    st.session_state.selected_option = None
-if "hotel_decision" not in st.session_state:
-    st.session_state.hotel_decision = None
-if "sightseeing_decision" not in st.session_state:
-    st.session_state.sightseeing_decision = None
-if "itinerary_confirmed" not in st.session_state:
-    st.session_state.itinerary_confirmed = False
+# --- Helper: Centralized Trip Input Processor ---
+def _process_trip_input(user_text):
+    st.session_state.messages.append({"role": "user", "content": user_text})
+    current_req = st.session_state.get("trip_request")
+    current_itin = st.session_state.get("itinerary")
+    last_place = st.session_state.get("last_tourism_place")
+    last_itin_ctx = st.session_state.get("last_itinerary_context")
+    intent = coordinator.detect_intent(user_text)
+    spinner_label = (
+        "Looking up yatra information..."
+        if intent == "TOURISM"
+        else ("Updating your day-by-day itinerary..." if intent == "ITINERARY" else "Checking slots, flights, trains and buses...")
+    )
+    pending_opts = st.session_state.get("pending_options")
+    with st.spinner(spinner_label):
+        result = coordinator.route_message(
+            user_text,
+            current_request=current_req,
+            current_itinerary=current_itin,
+            last_tourism_place=last_place,
+            last_itinerary_context=last_itin_ctx,
+            pending_options=pending_opts,
+            api_key=API_KEY,
+            base_url=BASE_URL,
+        )
+    st.session_state.messages.append({"role": "assistant", "content": result["reply"]})
+
+    if result.get("last_tourism_place"):
+        st.session_state.last_tourism_place = result["last_tourism_place"]
+
+    if result.get("last_itinerary_context"):
+        st.session_state.last_itinerary_context = result["last_itinerary_context"]
+
+    if result.get("itinerary") is not None:
+        st.session_state.itinerary = result["itinerary"]
+
+    if result.get("intent") == "TOURISM":
+        st.rerun()
+        return
+
+    if result.get("request") is not None:
+        st.session_state.trip_request = result["request"]
+    plan = result.get("plan") or {}
+    if plan.get("status") == "PLAN_READY":
+        st.session_state.pending_options = {"pax": plan["pax"], "options": plan["options"]}
+    st.rerun()
+
+
+# --- STAGE 3: Quick Yatra Search Card Widget ---
+st.markdown("### 🔍 Quick Yatra Search & Travel Planner")
+st.caption("Select your travel details to generate available flight, train, bus & darshan options instantly.")
+
+with st.container(border=True):
+    col_from, col_to, col_pax, col_mode, col_darshan = st.columns([2, 2, 1.5, 1.5, 2])
+    with col_from:
+        search_from = st.selectbox("From (Origin City)", ["Delhi", "Bhopal", "Mumbai", "Amritsar", "Jammu", "Chandigarh"], key="qs_from")
+    with col_to:
+        search_to = st.text_input("Destination", value="Vaishno Devi / Katra", disabled=True, key="qs_to")
+    with col_pax:
+        search_pax = st.number_input("Pilgrims", min_value=1, max_value=10, value=2, key="qs_pax")
+    with col_mode:
+        search_mode = st.selectbox("Travel Mode", ["Train", "Flight", "Bus"], key="qs_mode")
+    with col_darshan:
+        search_darshan = st.selectbox("Darshan Preference", ["VIP Darshan", "Normal Darshan"], key="qs_darshan")
+
+    if st.button("🔍 Search Yatra Options with AI", key="btn_quick_search", use_container_width=True):
+        qs_query = f"{search_pax} people from {search_from} by {search_mode.lower()} for {search_darshan}"
+        _process_trip_input(qs_query)
+
+st.write("")
 
 # --- Sidebar ---
 with st.sidebar:
@@ -529,7 +738,7 @@ def _reset_flow():
 
 
 # --- Top-level tabs ---
-tab_book, tab_explore = st.tabs(["Book Your Yatra", "Explore Jammu & Kashmir"])
+tab_book, tab_explore = st.tabs(["Plan & Book Your Yatra", "Explore Jammu & Kashmir Destinations"])
 
 with tab_book:
     if st.session_state.selected_option and st.session_state.hotel_decision is not None and st.session_state.sightseeing_decision is not None and st.session_state.itinerary_confirmed:
@@ -546,7 +755,27 @@ with tab_book:
         current_step = 1
     render_steps(current_step)
 
-    st.caption("Demonstration prototype — bookings and payments are simulated for review.")
+    # --- STAGE 6: Active Trip Plan Summary Card ---
+    if st.session_state.trip_request:
+        req = st.session_state.trip_request
+        st.markdown(
+            f"""
+            <div style="background:#FFFDF9; border:2px solid #E8C874; border-radius:14px; padding:14px 18px; margin-bottom:16px;">
+                <div style="font-weight:700; color:#6E1423; font-size:1.02rem; margin-bottom:4px;">
+                    ✈️ Active Trip Plan Summary
+                </div>
+                <div style="display:flex; gap:16px; flex-wrap:wrap; font-size:0.88rem; color:#2B2222;">
+                    <div><b>Origin:</b> {req.get('origin', '-')}</div>
+                    <div><b>Duration:</b> {req.get('duration_days', '-')} Days</div>
+                    <div><b>Pilgrims:</b> {req.get('pax', 1)}</div>
+                    <div><b>Mode:</b> {req.get('mode', 'Train').title()}</div>
+                    <div><b>Darshan:</b> {req.get('category', 'Normal Darshan')}</div>
+                    <div><b>Travel Style:</b> {req.get('travel_style', 'Balanced').title()}</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     # --- Render Conversation ---
     for i, msg in enumerate(st.session_state.messages):
@@ -578,11 +807,11 @@ with tab_book:
             st.markdown(
                 f"""
                 <div class="{card_class}">
-                    <div style="display:flex; justify-shadow:space-between; align-items:center; margin-bottom:12px;">
-                        <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:1.05rem; color:#6E1423;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <div style="font-family:'Plus Jakarta Sans',sans-serif; font-weight:700; font-size:1.05rem; color:#6E1423;">
                             Option {i + 1} — {label} {rec_badge}
                         </div>
-                        <div style="font-family:'Poppins',sans-serif; font-weight:800; font-size:1.2rem; color:#6E1423;">
+                        <div style="font-family:'Plus Jakarta Sans',sans-serif; font-weight:800; font-size:1.2rem; color:#6E1423;">
                             Total: ₹{opt["total_price"]}
                         </div>
                     </div>
@@ -742,7 +971,7 @@ with tab_book:
         sightseeing_places = st.session_state.sightseeing_decision or []
 
         itinerary = coordinator.build_final_itinerary(
-            opt, hotel=hotel, hotel_nights=hotel_nights, sightseeing_places=sightseeing_places
+            opt, hotel=hotel, hotel_nights=hotel_nights, sightseeing_places=sightseeing_places, request=st.session_state.get("trip_request")
         )
 
         st.markdown("### Day-Wise Itinerary")
@@ -758,7 +987,7 @@ with tab_book:
                         </span>
                         <span style="color:#6C5D5D; font-size:0.88rem; font-weight:600;">{day['date']}</span>
                     </div>
-                    <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:1.1rem; color:#2B2222; margin-bottom:8px;">
+                    <div style="font-family:'Plus Jakarta Sans',sans-serif; font-weight:700; font-size:1.1rem; color:#2B2222; margin-bottom:8px;">
                         {day['title']}
                     </div>
                     """,
@@ -855,24 +1084,28 @@ with tab_book:
             st.session_state.itinerary_confirmed = False
             st.rerun()
 
-    # --- STEP 1: Conversational Input ---
+    # --- STEP 1 / STAGE 5: Conversational AI Assistant & Prompt Chips ---
     else:
-        def _process_trip_input(user_text):
-            st.session_state.messages.append({"role": "user", "content": user_text})
-            current_req = st.session_state.get("trip_request")
-            with st.spinner("Checking slots, flights, trains and buses..."):
-                result = coordinator.process_trip_message(
-                    user_text,
-                    current_request=current_req,
-                    api_key=API_KEY,
-                    base_url=BASE_URL,
-                )
-            plan = result["plan"]
-            st.session_state.trip_request = result.get("request")
-            st.session_state.messages.append({"role": "assistant", "content": result["reply"]})
-            if plan["status"] == "PLAN_READY":
-                st.session_state.pending_options = {"pax": plan["pax"], "options": plan["options"]}
-            st.rerun()
+        st.markdown("### 💬 Ask Yatra AI Travel Assistant")
+        st.caption("Ask questions, plan custom trips, edit your itinerary, or check weather in natural language.")
+
+        st.markdown("##### Popular Assistant Prompts:")
+        chip_cols = st.columns(5)
+        with chip_cols[0]:
+            if st.button("Plan 5 days from Bhopal", key="chip_bhopal", use_container_width=True):
+                _process_trip_input("Plan a 5-day trip from Bhopal")
+        with chip_cols[1]:
+            if st.button("Places around Katra", key="chip_katra", use_container_width=True):
+                _process_trip_input("What places can I visit around Katra?")
+        with chip_cols[2]:
+            if st.button("About Bhairavnath", key="chip_bhairav", use_container_width=True):
+                _process_trip_input("Tell me about Bhairavnath")
+        with chip_cols[3]:
+            if st.button("Show Itinerary", key="chip_itin", use_container_width=True):
+                _process_trip_input("Show my itinerary")
+        with chip_cols[4]:
+            if st.button("Katra Weather", key="chip_weather", use_container_width=True):
+                _process_trip_input("What's the weather in Katra?")
 
         incoming_voice_text = st.query_params.get("voice_input")
         if incoming_voice_text:
@@ -881,13 +1114,73 @@ with tab_book:
             _process_trip_input(incoming_voice_text)
 
         render_voice_input()
-        if prompt := st.chat_input("Tell us about your trip — e.g., '2 people from Delhi next week by train for VIP darshan'"):
+        if prompt := st.chat_input("Ask Yatra AI — e.g., '4 people from Bhopal next week by train for VIP darshan'"):
             _process_trip_input(prompt)
 
 
+# --- STAGE 4 & 6: Explore J&K Destinations & Yatra Essentials ---
 with tab_explore:
-    st.subheader("Yatra Essentials")
-    st.caption("Cross-checked pilgrim information and guidelines.")
+    st.subheader("Explore Jammu & Kashmir Destinations")
+    st.caption("Discover top destinations across Jammu & Kashmir with instant AI guidance.")
+
+    if "selected_explore_place" not in st.session_state:
+        st.session_state.selected_explore_place = None
+
+    if st.session_state.selected_explore_place:
+        p = explore_data.get_place_by_name(st.session_state.selected_explore_place)
+        if st.button("Back to all places", key="back_to_places_grid"):
+            st.session_state.selected_explore_place = None
+            st.rerun()
+
+        with st.container(border=True):
+            render_place_image(p, height_px=260)
+            st.markdown(f'<div style="font-size:1.4rem; font-weight:800; color:#6E1423;">{p["name"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'**Category:** {p["category"]} · **Distance:** {p["distance"]}', unsafe_allow_html=True)
+            st.write("")
+            st.write(p["description"])
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"**Timings:** {p.get('timings', 'Not confirmed')}")
+            with col2:
+                st.markdown(f"**Entry:** {p.get('entry_fee', 'Not confirmed')}")
+
+            st.markdown("**Historical Background**")
+            st.write(p["historical_background"])
+
+            st.markdown(f"[Watch Video Guide]({p['video_search']})")
+            st.caption(f"Local Travel Note: {explore_data.get_local_travel_note(p['category'])}")
+
+            if st.button(f"Ask AI about {p['name']}", key=f"ask_ai_detail_{p['name']}", use_container_width=True):
+                _process_trip_input(f"Tell me about {p['name']}")
+
+    else:
+        categories = ["All"] + explore_data.get_categories()
+        chosen = st.selectbox("Filter by Category", categories, key="explore_tab_cat_filter")
+        places = explore_data.get_places(None if chosen == "All" else chosen)
+
+        cols = st.columns(3)
+        for i, p in enumerate(places):
+            with cols[i % 3]:
+                with st.container(border=True):
+                    render_place_image(p, height_px=120)
+                    st.markdown(f'<div style="font-weight:700; font-size:1rem; color:#6E1423;">{p["name"]}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<span style="font-size:0.78rem; color:#665757;">{p["category"]} · {p["distance"]}</span>', unsafe_allow_html=True)
+                    st.caption(p["description"][:110] + "...")
+                    
+                    c_btn1, c_btn2 = st.columns(2)
+                    with c_btn1:
+                        if st.button("Details", key=f"view_{p['name']}", use_container_width=True):
+                            st.session_state.selected_explore_place = p["name"]
+                            st.rerun()
+                    with c_btn2:
+                        if st.button("Ask AI", key=f"ask_ai_{p['name']}", use_container_width=True):
+                            _process_trip_input(f"Tell me about {p['name']}")
+
+    st.divider()
+
+    st.subheader("Yatra Essentials & Pilgrim Guidance")
+    st.caption("Official guidelines, route maps, and pilgrim safety advice.")
 
     with st.expander("Aarti Timings (Darshan Pauses During These Windows)"):
         aarti = yatra_info.get_aarti_timings()
@@ -944,54 +1237,22 @@ with tab_explore:
             st.write(f"- {opt_taxi['vehicle']} ({opt_taxi['capacity']}): {opt_taxi['fare_range']}")
         st.caption(taxi["note"])
 
-    st.subheader("Places to See Around Katra & Jammu")
-    st.caption(
-        "Informational guidance — not bookable through this application. Select any place to view "
-        "timings, entry fees, verified history, and video guides."
-    )
 
-    if "selected_explore_place" not in st.session_state:
-        st.session_state.selected_explore_place = None
-
-    if st.session_state.selected_explore_place:
-        p = explore_data.get_place_by_name(st.session_state.selected_explore_place)
-        if st.button("Back to all places", key="back_to_places_grid"):
-            st.session_state.selected_explore_place = None
-            st.rerun()
-
-        with st.container(border=True):
-            render_place_image(p, height_px=260)
-            st.markdown(f'<div class="place-card-title" style="font-size:1.4rem; color:#6E1423;">{p["name"]}</div>', unsafe_allow_html=True)
-            st.markdown(f'<span class="place-cat">{p["category"]}</span> · {p["distance"]}', unsafe_allow_html=True)
-            st.write("")
-            st.write(p["description"])
-
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown(f"**Timings:** {p.get('timings', 'Not confirmed')}")
-            with col2:
-                st.markdown(f"**Entry:** {p.get('entry_fee', 'Not confirmed')}")
-
-            st.markdown("**Historical Background**")
-            st.write(p["historical_background"])
-
-            st.markdown(f"[Watch Video Guide]({p['video_search']})")
-            st.caption(f"Local Travel Note: {explore_data.get_local_travel_note(p['category'])}")
-
-    else:
-        categories = ["All"] + explore_data.get_categories()
-        chosen = st.selectbox("Filter by Category", categories, key="explore_tab_cat_filter")
-        places = explore_data.get_places(None if chosen == "All" else chosen)
-
-        cols = st.columns(3)
-        for i, p in enumerate(places):
-            with cols[i % 3]:
-                with st.container(border=True):
-                    render_place_image(p, height_px=110)
-                    st.markdown(f'<div class="place-card-title" style="font-size:0.95rem; color:#6E1423;">{p["name"]}</div>', unsafe_allow_html=True)
-                    st.markdown(f'<span class="place-cat" style="font-size:0.75rem;">{p["category"]}</span>', unsafe_allow_html=True)
-                    st.caption(p["distance"])
-                    if st.button("View details", key=f"view_{p['name']}", use_container_width=True):
-                        st.session_state.selected_explore_place = p["name"]
-                        st.rerun()
-
+# --- STAGE 8: Modern Travel Platform Footer ---
+st.markdown(
+    """
+    <div style="margin-top:4rem; padding-top:2rem; border-top:1px solid #E8E0D2; text-align:center; color:#665757; font-size:0.85rem;">
+        <div style="font-family:'Playfair Display',serif; font-weight:800; font-size:1.2rem; color:#6E1423; margin-bottom:4px;">
+            VAISHNO DEVI YATRA AI
+        </div>
+        <div>Your Intelligent Pilgrimage & Jammu Kashmir Tourism Companion</div>
+        <div style="margin-top:10px; font-weight:600; color:#4A0D17;">
+            Official Helpline: 01991-232820 · Emergency Yatra Cell: 1800-180-7777
+        </div>
+        <div style="margin-top:8px; font-size:0.78rem; color:#998888;">
+            © 2026 Vaishno Devi Yatra AI Project. Built for seamless pilgrimage and tourism discovery across Jammu & Kashmir.
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
