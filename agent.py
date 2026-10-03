@@ -65,26 +65,47 @@ def _use_llm():
 
 
 def _extract_pax(text):
-    m = re.search(r"(\d+)\s*(people|pax|person|persons|members|pilgrims)?", text.lower())
+    if not text:
+        return None
+    t = text.lower()
+    m = re.search(r"(\d+)\s*(people|pax|person|persons|members|pilgrims|travellers|travelers)\b", t)
     if m:
         return max(1, int(m.group(1)))
-    return 1
+    m2 = re.search(r"\b(?:we are|for|group of|total|we are a group of|family of|make that|make it|i meant)\s+(\d+)\b", t)
+    if m2:
+        num = int(m2.group(1))
+        if not re.search(r"\b" + str(num) + r"\s*days?\b", t):
+            return max(1, num)
+    words_to_num = {
+        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10
+    }
+    for word, num in words_to_num.items():
+        if re.search(r"\b" + word + r"\s*(people|pax|person|persons|members|pilgrims|travellers|travelers)\b", t):
+            return num
+    return None
 
 
 def _extract_origin(text):
+    if not text:
+        return None
     t = text.strip()
     m = re.search(
-        r"\b(?:from|out of|leaving|travelling from|traveling from|departing from|starting from)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)",
+        r"\b(?:from|out of|leaving|travelling from|traveling from|departing from|starting from|starting city to|city to|from city|starting city|change my starting city to|change origin to)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)",
         t,
         re.IGNORECASE,
     )
+    stop_words = {
+        "the", "a", "an", "my", "our", "here", "there", "home", "katra",
+        "next", "this", "that", "it", "them", "these", "those", "last", "for", "with", "by", "in", "during", "and", "to", "or",
+        "travelling", "traveling", "visiting", "going", "planning", "train", "flight", "bus", "is",
+        "city", "starting", "from", "change", "make", "instead", "rather", "want", "prefer", "meant",
+        "trip", "yatra", "day", "days", "people", "pax", "person", "relaxed", "devotional", "budget",
+        "update", "modify", "edit", "fix", "switch", "keep", "more", "less", "friendly", "comfortable",
+        "premium", "luxury", "balanced", "sightseeing", "mixed", "family", "solo", "couple", "friends",
+        "group", "pilgrimage", "parents", "fast", "slow", "packed", "peaceful", "actually"
+    }
     if m:
-        candidate = m.group(1).strip()
-        stop_words = {
-            "the", "a", "an", "my", "our", "here", "there", "home", "katra", "jammu",
-            "next", "this", "last", "for", "with", "by", "in", "during", "and", "to", "or",
-            "travelling", "traveling", "visiting", "going", "planning"
-        }
+        candidate = re.sub(r"[^A-Za-z\s]", "", m.group(1)).strip()
         words = candidate.split()
         clean_words = []
         for w in words:
@@ -93,14 +114,11 @@ def _extract_origin(text):
             clean_words.append(w.capitalize())
         if clean_words:
             res = " ".join(clean_words)
-            if res.lower() not in ["katra", "jammu"] and len(res) >= 3:
+            if res.lower() not in ["katra"] and len(res) >= 3:
                 return res
 
-    words = [w for w in re.findall(r"\b[A-Za-z]+\b", t) if w.lower() not in {
-        "hi", "hello", "yes", "no", "ok", "please", "pax", "people", "person", "pilgrim", "pilgrims",
-        "days", "day", "train", "flight", "bus", "vip", "darshan", "yatra", "help", "thanks"
-    }]
-    if len(words) == 1 and len(words[0]) >= 3:
+    words = [w for w in re.findall(r"\b[A-Za-z]+\b", t) if w.lower() not in stop_words]
+    if len(words) == 1 and len(words[0]) >= 3 and words[0].lower() not in ["katra"]:
         return words[0].capitalize()
 
     return None
@@ -123,7 +141,9 @@ def _extract_mode(text):
 
 
 def _extract_duration(text):
-    m = re.search(r"(\d+)\s*days?", text.lower())
+    if not text:
+        return None
+    m = re.search(r"(\d+)[\s-]*days?", text.lower())
     if m:
         return int(m.group(1))
     return None
@@ -140,8 +160,71 @@ def _extract_season(text):
 
 def _extract_sightseeing(text):
     t = text.lower()
-    keywords = ["nearby places", "sightseeing", "visit places", "tourist spots", "places to see", "explore nearby"]
-    return any(kw in t for kw in keywords)
+    if any(kw in t for kw in ["remove sightseeing", "no sightseeing", "without sightseeing", "don't want sightseeing", "dont want sightseeing", "stop sightseeing"]):
+        return False
+    keywords = ["nearby places", "sightseeing", "visit places", "tourist spots", "places to see", "explore nearby", "add sightseeing", "want sightseeing"]
+    if any(kw in t for kw in keywords):
+        return True
+    return None
+
+
+def is_ambiguous_change(text: str) -> bool:
+    """True if user text asks to change/update something but names no extractable field."""
+    if not text:
+        return False
+    t = re.sub(r"[^\w\s]", "", text.strip().lower()).strip()
+    ambiguous_phrases = [
+        "change that", "update that", "fix that", "change it", "update my trip",
+        "change trip", "modify trip", "edit trip", "change my trip", "make changes",
+        "change this", "update this", "edit this"
+    ]
+    if any(p == t for p in ambiguous_phrases) or t in ("change", "update", "modify", "edit"):
+        return True
+    return False
+
+
+def get_changed_fields(old_req, new_req):
+    """Computes exact diff between old trip request state and updated state.
+    Returns dict: {field_name: {"label": str, "old": val, "new": val}}."""
+    if not old_req or not new_req:
+        return {}
+    diff = {}
+    fields = [
+        ("duration_days", "Duration", lambda v: f"{v} days" if v else None),
+        ("pax", "Travellers", lambda v: f"{v} pilgrim{'s' if v > 1 else ''}" if v else None),
+        ("origin", "Starting City", lambda v: v),
+        ("mode", "Travel Mode", lambda v: str(v).title() if v else None),
+        ("category", "Darshan Category", lambda v: v),
+        ("sightseeing", "Sightseeing", lambda v: "Added" if v else "Removed"),
+        ("group_type", "Group Type", lambda v: str(v).title() if v else None),
+        ("travel_style", "Pacing & Style", lambda v: str(v).title() if v else None),
+        ("trip_focus", "Trip Focus", lambda v: str(v).title() if v else None),
+        ("budget_preference", "Budget Preference", lambda v: str(v).title() if v else None),
+    ]
+    for key, label, fmt in fields:
+        old_v = old_req.get(key)
+        new_v = new_req.get(key)
+        if old_v != new_v and new_v is not None and old_v is not None:
+            diff[key] = {
+                "label": label,
+                "old": fmt(old_v) if old_v is not None else "Not set",
+                "new": fmt(new_v) if new_v is not None else "Not set",
+            }
+    return diff
+
+
+def format_edit_confirmation(diff):
+    """Renders a concise, professional confirmation of updated trip fields."""
+    if not diff:
+        return ""
+    lines = ["✏️ **Updated Your Trip:**"]
+    for key, info in diff.items():
+        label = info["label"]
+        old_v = info["old"]
+        new_v = info["new"]
+        lines.append(f"• **{label}:** {old_v} → {new_v}")
+    lines.append("\n*I've kept the rest of your preferences unchanged.*")
+    return "\n".join(lines)
 
 
 def _extract_date_range(text):
@@ -164,15 +247,22 @@ def _extract_date_range(text):
 
 def parse_request(text, current_request=None):
     """Rule-based extraction of a structured trip request from free text."""
-    pax_val = _extract_pax(text) if re.search(r"(\d+)\s*(people|pax|person|persons|members|pilgrims)", text.lower()) else None
+    from agents import recommendation_agent
+
+    pax_val = _extract_pax(text)
+    prefs = recommendation_agent.extract_preferences(text)
     parsed = {
-        "pax": pax_val if pax_val is not None else 1,
+        "pax": pax_val,
         "origin": _extract_origin(text),
         "category": _extract_category(text),
         "mode": _extract_mode(text),
         "duration_days": _extract_duration(text),
         "season": _extract_season(text),
         "sightseeing": _extract_sightseeing(text),
+        "group_type": prefs.get("group_type"),
+        "travel_style": prefs.get("travel_style"),
+        "trip_focus": prefs.get("trip_focus"),
+        "budget_preference": prefs.get("budget_preference"),
         "start_date": _extract_date_range(text)[0],
         "end_date": _extract_date_range(text)[1],
     }
@@ -180,26 +270,39 @@ def parse_request(text, current_request=None):
 
 
 def merge_requests(old_req, new_req, text=""):
-    """Merges newly extracted trip details into an existing request state."""
+    """Merges newly extracted trip details into an existing request state,
+    properly supporting explicit corrections, value replacements, and state preservation."""
+    from agents import recommendation_agent
+
     if not old_req:
         res = dict(new_req)
-        res["pax"] = res.get("pax") or 1
+        if res.get("pax") is None:
+            res["pax"] = 1
         return res
 
     merged = dict(old_req)
-    for k, v in new_req.items():
-        if v is not None:
-            if merged.get(k) is None:
-                merged[k] = v
-            elif k in ("origin", "category", "mode", "season", "duration_days") and v:
-                merged[k] = v
-            elif k == "pax" and v != 1:
-                merged[k] = v
-            elif k == "sightseeing" and v:
-                merged[k] = True
 
+    # 1. Direct explicit field updates from new_req
+    for k in ("origin", "category", "mode", "season", "duration_days", "group_type", "travel_style", "trip_focus", "budget_preference"):
+        v = new_req.get(k)
+        if v is not None:
+            merged[k] = v
+
+    if new_req.get("pax") is not None:
+        merged["pax"] = new_req["pax"]
+
+    if new_req.get("sightseeing") is not None:
+        merged["sightseeing"] = new_req["sightseeing"]
+
+    # 2. Text-based preference overrides
+    prefs = recommendation_agent.extract_preferences(text)
+    for pk, pv in prefs.items():
+        if pv is not None:
+            merged[pk] = pv
+
+    # 3. Text-based duration override
     dur = _extract_duration(text)
-    if dur:
+    if dur is not None:
         merged["duration_days"] = dur
         try:
             st_date = datetime.strptime(merged.get("start_date", date.today().isoformat()), "%Y-%m-%d").date()
@@ -207,12 +310,42 @@ def merge_requests(old_req, new_req, text=""):
         except Exception:
             pass
 
+    # 4. Text-based origin override
+    new_orig = _extract_origin(text)
+    if new_orig is not None:
+        merged["origin"] = new_orig
+
+    # 5. Text-based mode override
+    new_mode = _extract_mode(text)
+    if new_mode is not None:
+        merged["mode"] = new_mode
+
+    # 6. Text-based darshan category override
+    new_cat = _extract_category(text)
+    if new_cat is not None:
+        merged["category"] = new_cat
+
+    # 7. Text-based sightseeing override
+    sightseeing = _extract_sightseeing(text)
+    if sightseeing is not None:
+        merged["sightseeing"] = sightseeing
+        if sightseeing is False and merged.get("trip_focus") == "mixed":
+            merged["trip_focus"] = "devotional"
+
     season = _extract_season(text)
-    if season:
+    if season is not None:
         merged["season"] = season
 
-    if _extract_sightseeing(text):
-        merged["sightseeing"] = True
+    # Ambiguity check
+    if is_ambiguous_change(text):
+        changed = get_changed_fields(old_req, merged)
+        if not changed:
+            merged["_ambiguous_change"] = True
+
+    if not merged.get("start_date") or not merged.get("end_date"):
+        st_date, en_date = _extract_date_range(text)
+        merged["start_date"] = merged.get("start_date") or st_date
+        merged["end_date"] = merged.get("end_date") or en_date
 
     return merged
 
