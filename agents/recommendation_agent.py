@@ -148,15 +148,18 @@ def generate_recommendation(request: dict) -> dict:
 
     # Format Markdown Card
     card_lines = [
-        "🙏 **Jai Mata Di! Here is your Personalized Yatra Recommendation:**\n",
-        "### PERSONALIZED TRIP RECOMMENDATION\n",
-        "**Trip Profile**",
+        "<!-- PERSONALIZED TRIP RECOMMENDATION -->",
+        "### ✨ YOUR PERSONALIZED YATRA PLAN",
+        "*Designed around your travel preferences*",
+        "",
+        "**TRIP SNAPSHOT**",
         f"• **Travellers:** {pax} pilgrim{'s' if pax > 1 else ''}",
         f"• **Group Type:** {group_type.title()}",
         f"• **Duration:** {duration} days",
         f"• **Pacing & Style:** {travel_style.title()} pace",
         f"• **Trip Focus:** {trip_focus.title()} ({'Pilgrimage + Sightseeing' if trip_focus=='mixed' else trip_focus.title()})",
-        f"• **Budget Preference:** {budget.title()}\n",
+        f"• **Budget Preference:** {budget.title()}",
+        "",
         "**Recommended Approach**",
     ]
     for b in approach_bullets:
@@ -167,8 +170,8 @@ def generate_recommendation(request: dict) -> dict:
         card_lines.append(f"• **{sp['name']}** ({sp['category']}, {sp['distance']}): {sp['description']}")
 
     card_lines.append(f"\n**Why This Suits You**\n\"{reasoning}\"\n")
-    card_lines.append(f"_{budget_note}_\n")
-    card_lines.append("_Would you like me to generate the day-wise itinerary or search travel options to Katra?_")
+    card_lines.append(f"💰 **BUDGET:** {budget.title()}\n_{budget_note}_\n")
+    card_lines.append("**NEXT ACTIONS:**\n• [Generate Itinerary →]\n• [Search Travel →]")
 
     formatted_card = "\n".join(card_lines)
 

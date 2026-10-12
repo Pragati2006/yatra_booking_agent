@@ -97,6 +97,7 @@ def _extract_origin(text):
     stop_words = {
         "the", "a", "an", "my", "our", "here", "there", "home", "katra",
         "next", "this", "that", "it", "them", "these", "those", "last", "for", "with", "by", "in", "during", "and", "to", "or",
+        "on", "at", "around",
         "travelling", "traveling", "visiting", "going", "planning", "train", "flight", "bus", "is",
         "city", "starting", "from", "change", "make", "instead", "rather", "want", "prefer", "meant",
         "trip", "yatra", "day", "days", "people", "pax", "person", "relaxed", "devotional", "budget",
@@ -227,10 +228,90 @@ def format_edit_confirmation(diff):
     return "\n".join(lines)
 
 
+def has_explicit_date(text):
+    if not text:
+        return False
+    t = text.lower()
+    if any(k in t for k in ["next week", "this week", "next month", "tomorrow"]):
+        return True
+    if re.search(r"\b(202\d)-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])\b", text):
+        return True
+    if re.search(r"\b(\d{1,2})(?:st|nd|rd|th)?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b", text, re.IGNORECASE):
+        return True
+    if re.search(r"\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})\b", text, re.IGNORECASE):
+        return True
+    if re.search(r"\b([0-2]?[1-9]|3[01])[/-](0?[1-9]|1[0-2])[/-](202\d)\b", text):
+        return True
+    return False
+
+
 def _extract_date_range(text):
+    if not text:
+        today = date.today()
+        return today.isoformat(), (today + timedelta(days=13)).isoformat()
     t = text.lower()
     today = date.today()
     dur = _extract_duration(text)
+
+    # 1. ISO format: YYYY-MM-DD
+    m_iso = re.search(r"\b(202\d)-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])\b", text)
+    if m_iso:
+        try:
+            start = datetime.strptime(m_iso.group(0), "%Y-%m-%d").date()
+            span_days = dur - 1 if dur and dur > 1 else 3
+            end = start + timedelta(days=span_days)
+            return start.isoformat(), end.isoformat()
+        except Exception:
+            pass
+
+    # 2. DD Month YYYY (e.g. 17 Oct 2026, 17 October 2026)
+    m_dmy = re.search(
+        r"\b(\d{1,2})(?:st|nd|rd|th)?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?:\s+(\d{4}))?\b",
+        text,
+        re.IGNORECASE,
+    )
+    if m_dmy:
+        day_str = m_dmy.group(1)
+        month_str = m_dmy.group(2)[:3].capitalize()
+        year_str = m_dmy.group(3) or str(today.year)
+        try:
+            start = datetime.strptime(f"{day_str} {month_str} {year_str}", "%d %b %Y").date()
+            span_days = dur - 1 if dur and dur > 1 else 3
+            end = start + timedelta(days=span_days)
+            return start.isoformat(), end.isoformat()
+        except Exception:
+            pass
+
+    # 3. Month DD, YYYY (e.g. Oct 17, 2026 or October 17 2026)
+    m_mdy = re.search(
+        r"\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b",
+        text,
+        re.IGNORECASE,
+    )
+    if m_mdy:
+        month_str = m_mdy.group(1)[:3].capitalize()
+        day_str = m_mdy.group(2)
+        year_str = m_mdy.group(3) or str(today.year)
+        try:
+            start = datetime.strptime(f"{day_str} {month_str} {year_str}", "%d %b %Y").date()
+            span_days = dur - 1 if dur and dur > 1 else 3
+            end = start + timedelta(days=span_days)
+            return start.isoformat(), end.isoformat()
+        except Exception:
+            pass
+
+    # 4. DD/MM/YYYY or DD-MM-YYYY
+    m_slash = re.search(r"\b([0-2]?[1-9]|3[01])[/-](0?[1-9]|1[0-2])[/-](202\d)\b", text)
+    if m_slash:
+        try:
+            start = datetime.strptime(f"{m_slash.group(1)}/{m_slash.group(2)}/{m_slash.group(3)}", "%d/%m/%Y").date()
+            span_days = dur - 1 if dur and dur > 1 else 3
+            end = start + timedelta(days=span_days)
+            return start.isoformat(), end.isoformat()
+        except Exception:
+            pass
+
+    # 5. Relative phrases
     if "next week" in t:
         start = today + timedelta(days=7)
     elif "this week" in t:
@@ -342,7 +423,11 @@ def merge_requests(old_req, new_req, text=""):
         if not changed:
             merged["_ambiguous_change"] = True
 
-    if not merged.get("start_date") or not merged.get("end_date"):
+    if has_explicit_date(text):
+        st_date, en_date = _extract_date_range(text)
+        merged["start_date"] = st_date
+        merged["end_date"] = en_date
+    elif not merged.get("start_date") or not merged.get("end_date"):
         st_date, en_date = _extract_date_range(text)
         merged["start_date"] = merged.get("start_date") or st_date
         merged["end_date"] = merged.get("end_date") or en_date
@@ -370,6 +455,31 @@ def resolve_hub(origin):
     return None, False
 
 
+def _enrich_flight_transfer(r):
+    """Enriches flight options with verified road transfer details from Jammu Airport to Katra."""
+    if r.get("mode") == "flight":
+        r["is_flight_connecting_transfer"] = True
+        r["arrival_hub"] = "Jammu Airport"
+        r["transfer_mode"] = "Taxi / Bus"
+        r["transfer_route"] = "Jammu Airport → Katra"
+        r["transfer_distance"] = "approx. 44-55 km"
+        r["transfer_duration"] = "approx. 1-1.5 hours by road"
+        if r.get("is_connecting") and r.get("connecting_hub"):
+            hub = r["connecting_hub"]
+            r["transfer_note"] = (
+                f"Direct flight to Katra is not available. This option flies from {hub} to Jammu, "
+                "followed by a local taxi/bus transfer to Katra."
+            )
+            r["display_route"] = f"{r.get('origin', '')} → {hub} → Jammu Airport → Katra"
+        else:
+            r["transfer_note"] = (
+                "Direct flight to Katra is not available. This option flies to Jammu, "
+                "followed by a local taxi/bus transfer to Katra."
+            )
+            r["display_route"] = f"{r.get('origin', '')} → Jammu Airport → Katra"
+    return r
+
+
 def _search_transport(request):
     """Searches whichever modes are relevant and returns (combined_results, is_direct_flag)."""
     origin = request["origin"]
@@ -392,6 +502,8 @@ def _search_transport(request):
         for r in direct_results:
             r["is_connecting"] = False
             r["origin"] = origin
+            if r.get("mode") == "flight":
+                _enrich_flight_transfer(r)
         return direct_results, True
 
     # 2. If direct transport unavailable, resolve regional hub
@@ -407,6 +519,8 @@ def _search_transport(request):
                 r["origin"] = origin  # Preserve exact user's origin
                 r["route_note"] = f"Connecting via {hub}"
                 r["display_route"] = f"{origin} → Katra (via {hub})"
+                if r.get("mode") == "flight":
+                    _enrich_flight_transfer(r)
             connecting_results.extend(res)
         return connecting_results, False
 

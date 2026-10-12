@@ -16,6 +16,8 @@ import yatra_info
 
 # Common informal names that should resolve to an existing place record.
 _PLACE_ALIASES = {
+    "katra": "Katra",
+    "katra town": "Katra",
     "bhairavnath": "Bhairavnath Temple",
     "bhairav nath": "Bhairavnath Temple",
     "bhairav": "Bhairavnath Temple",
@@ -44,6 +46,8 @@ _PLACE_ALIASES = {
     "bahu fort": "Bahu Fort & Bagh-e-Bahu",
     "bahu": "Bahu Fort & Bagh-e-Bahu",
     "bagh-e-bahu": "Bahu Fort & Bagh-e-Bahu",
+    "amar palace": "Amar Mahal Palace",
+    "amar mahal palace": "Amar Mahal Palace",
     "amar mahal": "Amar Mahal Palace",
     "himkoti": "Himkoti",
     "dera baba": "Dera Baba Banda Bahadur",
@@ -52,6 +56,28 @@ _PLACE_ALIASES = {
     "shivkhori": "Shiv Khori",
     "peer kho": "Peer Kho Cave Temple",
     "peerkho": "Peer Kho Cave Temple",
+    "srinagar": "Srinagar (Dal Lake & Gardens)",
+    "dal lake": "Srinagar (Dal Lake & Gardens)",
+    "gulmarg": "Gulmarg (Snow Meadow)",
+    "pahalgam": "Pahalgam (Valley of Shepherds)",
+    "sonamarg": "Sonamarg (Meadow of Gold)",
+    "sonmarg": "Sonamarg (Meadow of Gold)",
+    "kashmir valley": "Kashmir Valley",
+    "kashmir": "Kashmir Valley",
+    "shankaracharya": "Shankaracharya Temple, Srinagar",
+    "shankaracharya temple": "Shankaracharya Temple, Srinagar",
+    "kheer bhawani": "Kheer Bhawani Temple, Tulmulla",
+    "kheer bhawani temple": "Kheer Bhawani Temple, Tulmulla",
+    "tulmulla": "Kheer Bhawani Temple, Tulmulla",
+    "verinag": "Verinag Spring and Mughal Garden",
+    "verinag spring": "Verinag Spring and Mughal Garden",
+    "achabal": "Achabal Mughal Garden",
+    "achabal garden": "Achabal Mughal Garden",
+    "martand": "Martand Sun Temple, Mattan",
+    "martand sun temple": "Martand Sun Temple, Mattan",
+    "mattan": "Martand Sun Temple, Mattan",
+    "sinthan top": "Sinthan Top",
+    "sinthan": "Sinthan Top",
 }
 
 _STOPWORDS = {
@@ -108,11 +134,20 @@ def classify_tourism_topic(query: str, last_place: str = None) -> str:
         r"\b(vaishno|vaishnavi|mata|shrine|bhawan|goddess)\b", q
     ) and not find_specific_places(query) and not (last_place and is_place_followup(query)):
         return "vaishno_history"
+    specific_places = find_specific_places(query)
+    non_katra_places = [p for p in specific_places if p["name"] != "Katra"]
+
+# Broad destination/sightseeing questions should be treated as
+# nearby-place queries before checking for a specific place.
     if re.search(
         r"\b(nearby|around katra|around jammu|places to (see|visit)|what places|tourist spots|sightseeing spots|places can i visit)\b",
         q,
-    ) and not find_specific_places(query):
-        return "nearby_places"
+    ):
+        if not non_katra_places:
+            return "nearby_places"
+    
+    if specific_places or (last_place and is_place_followup(query)):
+        return "place"
     if find_specific_places(query) or (last_place and is_place_followup(query)):
         return "place"
     if re.search(r"\b(history|historical|heritage|mythology|legend)\b", q):
@@ -202,10 +237,28 @@ def get_jk_tourism_knowledge(query: str = "", last_place: str = None) -> dict:
     is_followup = False
     primary_place = None
 
-    if specific:
+    # Broad sightseeing queries take priority over generic place matching.
+    non_hub_specific = [p for p in specific if p["name"] not in ("Katra", "Jammu")]
+    has_pronoun_ref = bool(re.search(r"\b(it|its|there|that place|this place)\b", query, re.IGNORECASE)) if query else False
+
+    if topic == "nearby_places":
+        matched_places = get_nearby_katra_places()
+
+    elif last_place and is_place_followup(query) and (not non_hub_specific or has_pronoun_ref):
+        resolved = search_place_by_name(last_place)
+        if resolved:
+            primary_place = resolved
+            matched_places = [resolved]
+            topic = "place"
+            is_followup = True
+        else:
+            matched_places = []
+
+    elif specific:
         primary_place = specific[0]
         matched_places = specific
         topic = "place"
+
     elif last_place and is_place_followup(query):
         resolved = search_place_by_name(last_place)
         if resolved:
@@ -215,12 +268,10 @@ def get_jk_tourism_knowledge(query: str = "", last_place: str = None) -> dict:
             is_followup = True
         else:
             matched_places = []
-    elif topic == "nearby_places":
-        matched_places = get_nearby_katra_places()
+
     else:
         matched_places = []
-
-    active_last_place = primary_place["name"] if primary_place else last_place
+    active_last_place = primary_place["name"] if primary_place else (last_place if is_followup else None)
 
     return {
         "query": query,

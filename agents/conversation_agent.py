@@ -358,13 +358,20 @@ def format_tourism_reply(tourism_result):
         travel_note = explore_data.get_local_travel_note(category)
 
         if category == "On the trek route":
-            route_pos = "Located directly along the main Vaishno Devi trek route between Katra and Bhawan."
+            route_pos_label = "Pilgrimage Route Position"
+            route_pos = p.get("location_route") or "Located directly along the main Vaishno Devi trek route between Katra and Bhawan."
         elif category in ("Nearby temple", "Nature"):
-            route_pos = "Located near Katra base town — easily visited as a short excursion before or after the trek."
+            route_pos_label = "Pilgrimage Route Position"
+            route_pos = p.get("location_route") or "Located near Katra base town — easily visited as a short excursion before or after the trek."
         elif category in ("Hill station", "Hill station / adventure"):
-            route_pos = "A prominent hill station in the Jammu region, commonly visited as a full-day trip from Katra or Jammu."
+            route_pos_label = "Pilgrimage Route Position"
+            route_pos = p.get("location_route") or "A prominent hill station in the Jammu region, commonly visited as a full-day trip from Katra or Jammu."
+        elif category == "Kashmir" or p.get("region") == "Kashmir":
+            route_pos_label = "Location & Route"
+            route_pos = p.get("location_route") or "Located in the Kashmir Valley."
         else:
-            route_pos = "Located in or near Jammu city, convenient for pilgrims arriving or departing via Jammu."
+            route_pos_label = "Pilgrimage Route Position"
+            route_pos = p.get("location_route") or "Located in or near Jammu city, convenient for pilgrims arriving or departing via Jammu."
 
         if is_followup and re.search(r"\b(how far|distance|where is|location)\b", query):
             return (
@@ -372,7 +379,7 @@ def format_tourism_reply(tourism_result):
                 f"### Distance & Travel: {p['name']}\n\n"
                 f"• **Distance:** {p.get('distance', 'N/A')}\n"
                 f"• **Category:** {category}\n"
-                f"• **Pilgrimage Route Position:** {route_pos}\n"
+                f"• **{route_pos_label}:** {route_pos}\n"
                 f"• **Local Travel Note:** {travel_note}\n\n"
                 f"**Overview:** {p.get('description', '')}\n\n"
                 f"_Would you like to know what to do at {p['name']}, or view other nearby places?_"
@@ -398,9 +405,9 @@ def format_tourism_reply(tourism_result):
             f"*{category} · {p.get('distance', '')}*\n\n"
             f"**Overview**\n"
             f"{p.get('description', '')}\n\n"
-            f"**Significance in Vaishno Devi Pilgrimage**\n"
+            f"**Significance & Background**\n"
             f"{p.get('historical_background', '')}\n\n"
-            f"**Pilgrimage Route Position**\n"
+            f"**{route_pos_label}**\n"
             f"{route_pos}\n\n"
             f"**Practical Information**\n"
             f"• **Timings:** {p.get('timings', 'Not confirmed')}\n"

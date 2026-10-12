@@ -55,6 +55,7 @@ LOCAL_TRAVEL_NOTES = {
     "Hill station / adventure": "Best reached by taxi from Jammu or Katra; a full-day hire for a hill-station trip commonly runs ₹2,500-4,500.",
     "Nature / heritage": "Usually a half/full-day taxi hire from Jammu, roughly ₹1,500-3,000.",
     "Jammu city": "Local taxi or auto-rickshaw from Katra, roughly ₹1,000-1,800 one-way given the distance to Jammu city.",
+    "Kashmir": "Best reached using Srinagar as a hub via taxi or private vehicle; travelers from Jammu access the valley via NH-44.",
 }
 
 def _yt_search(query):
@@ -84,7 +85,8 @@ PLACES = [
             "which is why this stop remains a core part of the yatra to this day."
         ),
         "video_search": _yt_search("Bhairavnath Temple Vaishno Devi"),
-        "image_file": "bhairavnath_temple.jpg",
+        "image": "assets/images/places/Bhairavnath Temple.png",
+        "image_file": "assets/images/places/Bhairavnath Temple.png",
     },
     {
         "name": "Ardhkuwari Cave",
@@ -104,7 +106,8 @@ PLACES = [
             "available for those who prefer it."
         ),
         "video_search": _yt_search("Ardhkuwari cave Vaishno Devi Garbh Joon"),
-        "image_file": "ardhkuwari_cave.jpg",
+        "image": "assets/images/places/Ardhkuwari, Maa Vaishno Devi!.jpg",
+        "image_file": "assets/images/places/Ardhkuwari, Maa Vaishno Devi!.jpg",
     },
     {
         "name": "Charan Paduka",
@@ -120,7 +123,8 @@ PLACES = [
             "footwear/footprints)."
         ),
         "video_search": _yt_search("Charan Paduka Vaishno Devi trek"),
-        "image_file": "charan_paduka.jpg",
+        "image": "assets/images/places/Charan paduka.jpg",
+        "image_file": "assets/images/places/Charan paduka.jpg",
     },
     {
         "name": "Nau Devi Cave Temple",
@@ -135,7 +139,8 @@ PLACES = [
             "predating and paralleling the more famous Vaishno Devi shrine itself."
         ),
         "video_search": _yt_search("Nau Devi cave temple Katra"),
-        "image_file": "nau_devi_temple.jpg",
+        "image": "assets/images/places/Nau Devi Temple.avif",
+        "image_file": "assets/images/places/Nau Devi Temple.avif",
     },
     {
         "name": "Baba Dhansar",
@@ -150,7 +155,8 @@ PLACES = [
             "having a widely documented origin story like the main Vaishno Devi sites."
         ),
         "video_search": _yt_search("Baba Dhansar waterfall Jammu"),
-        "image_file": "baba_dhansar.jpg",
+        "image": "assets/images/places/Baba Dhansar.jpg",
+        "image_file": "assets/images/places/Baba Dhansar.jpg",
     },
     {
         "name": "Jhajjar Kotli",
@@ -165,7 +171,8 @@ PLACES = [
             "legend tied to the location."
         ),
         "video_search": _yt_search("Jhajjar Kotli Jammu tourism"),
-        "image_file": "jhajjar_kotli.jpg",
+        "image": "assets/images/places/Jhajjar Kotli.jpg",
+        "image_file": "assets/images/places/Jhajjar Kotli.jpg",
     },
     {
         "name": "Patnitop",
@@ -181,7 +188,8 @@ PLACES = [
             "ancient monument."
         ),
         "video_search": _yt_search("Patnitop hill station Jammu"),
-        "image_file": "patnitop.jpg",
+        "image": "assets/images/places/Patnitop.jpg",
+        "image_file": "assets/images/places/Patnitop.jpg",
     },
     {
         "name": "Sanasar",
@@ -196,7 +204,8 @@ PLACES = [
             "it developed into an adventure-tourism destination in more recent decades."
         ),
         "video_search": _yt_search("Sanasar meadow Jammu paragliding"),
-        "image_file": "sanasar.jpg",
+        "image": "assets/images/places/Sanasar.jpg",
+        "image_file": "assets/images/places/Sanasar.jpg",
     },
     {
         "name": "Mansar Lake",
@@ -212,7 +221,8 @@ PLACES = [
             "Hindu ritual of mundan (a child's first haircut)."
         ),
         "video_search": _yt_search("Mansar Lake Jammu"),
-        "image_file": "mansar_lake.jpg",
+        "image": "assets/images/places/Mansar Lake.jpg",
+        "image_file": "assets/images/places/Mansar Lake.jpg",
     },
     {
         "name": "Raghunath Temple, Jammu",
@@ -229,7 +239,8 @@ PLACES = [
             "Lord Rama (Raghunath)."
         ),
         "video_search": _yt_search("Raghunath Temple Jammu"),
-        "image_file": "raghunath_temple.jpg",
+        "image": "assets/images/places/Raghunath Temple.webp",
+        "image_file": "assets/images/places/Raghunath Temple.webp",
     },
     {
         "name": "Bahu Fort & Bagh-e-Bahu",
@@ -247,7 +258,8 @@ PLACES = [
             "Bagh-e-Bahu gardens below."
         ),
         "video_search": _yt_search("Bahu Fort Jammu"),
-        "image_file": "bahu_fort.jpg",
+        "image": "assets/images/places/Bahu Fort & Bagh-e-bahu.jpg",
+        "image_file": "assets/images/places/Bahu Fort & Bagh-e-bahu.jpg",
     },
     {
         "name": "Amar Mahal Palace",
@@ -265,7 +277,8 @@ PLACES = [
             "paintings, and a library of roughly 25,000 antique books."
         ),
         "video_search": _yt_search("Amar Mahal Palace Jammu"),
-        "image_file": "amar_mahal.jpg",
+        "image": "assets/images/places/amar mahal.jpg",
+        "image_file": "assets/images/places/amar mahal.jpg",
     },
     {
         "name": "Ban Ganga",
@@ -282,7 +295,8 @@ PLACES = [
             "climb properly begins."
         ),
         "video_search": _yt_search("Ban Ganga Vaishno Devi trek"),
-        "image_file": "ban_ganga.jpg",
+        "image": "assets/images/places/Ban Ganga.jpg",
+        "image_file": "assets/images/places/Ban Ganga.jpg",
     },
     {
         "name": "Himkoti",
@@ -298,7 +312,8 @@ PLACES = [
             "Board with gardens and rest areas for pilgrims taking that route."
         ),
         "video_search": _yt_search("Himkoti viewpoint Vaishno Devi"),
-        "image_file": "himkoti.jpg",
+        "image": "assets/images/places/Himkoti.jpg",
+        "image_file": "assets/images/places/Himkoti.jpg",
     },
     {
         "name": "Dera Baba Banda Bahadur",
@@ -314,7 +329,8 @@ PLACES = [
             "kirtan and the site lit up for the occasion."
         ),
         "video_search": _yt_search("Dera Baba Banda Bahadur gurudwara"),
-        "image_file": "dera_baba_banda.jpg",
+        "image": "assets/images/places/Dera Baba Banda Bahadur.jpg",
+        "image_file": "assets/images/places/Dera Baba Banda Bahadur.jpg",
     },
     {
         "name": "Shiv Khori",
@@ -331,11 +347,13 @@ PLACES = [
             "unsafe to explore. It draws large crowds during its own Maha Shivratri mela each year."
         ),
         "video_search": _yt_search("Shiv Khori cave temple Jammu"),
-        "image_file": "shiv_khori.jpg",
+        "image": "assets/images/places/Shiv Khori.jpg",
+        "image_file": "assets/images/places/Shiv Khori.jpg",
     },
     {
         "name": "Peer Kho Cave Temple",
         "category": "Jammu city",
+        "region": "Jammu",
         "distance": "~45 minutes from Katra",
         "timings": "5 AM-7 PM",
         "entry_fee": "Free",
@@ -348,11 +366,214 @@ PLACES = [
             "to Shiva, Navadurga, and Jamvant."
         ),
         "video_search": _yt_search("Peer Kho cave temple Jammu"),
-        "image_file": "peer_kho.jpg",
+        "image": "assets/images/places/Peer Kho Cave Temple.jpg",
+        "image_file": "assets/images/places/Peer Kho Cave Temple.jpg",
+    },
+    {
+        "name": "Srinagar (Dal Lake & Gardens)",
+        "category": "Kashmir",
+        "region": "Kashmir",
+        "distance": "Within Srinagar (~290 km from Jammu)",
+        "location_route": "Located within Srinagar. Jammu to Srinagar is approximately 290 km and 6–7 hours by road via NH-44. Local travel within Srinagar is required to reach the lake and individual gardens.",
+        "timings": "Open access, Shikara rides 6 AM-8 PM",
+        "entry_fee": "Shikara rides ₹500-1200/hr",
+        "description": "The summer capital of J&K, world-famous for Dal Lake, iconic wooden Shikaras, houseboats, and royal Mughal gardens.",
+        "historical_background": (
+            "Srinagar was founded by Emperor Ashoka in the 3rd century BC as Srinagari. Later under Mughal emperors "
+            "Jahangir and Shah Jahan, lush terraced gardens like Shalimar Bagh and Nishat Bagh were laid out along Dal Lake."
+        ),
+        "video_search": _yt_search("Srinagar Dal Lake Kashmir tourism"),
+        "image": "assets/images/places/Dal Lake.jpg",
+        "image_file": "assets/images/places/Dal Lake.jpg",
+    },
+    {
+        "name": "Gulmarg (Snow Meadow)",
+        "category": "Kashmir",
+        "region": "Kashmir",
+        "distance": "~60 km from Srinagar (~1.5–2.5 hrs)",
+        "location_route": "About 60 km from Srinagar via Tangmarg, typically a 1.5–2.5-hour drive. Travellers coming from Jammu should allow additional time to reach Srinagar first.",
+        "timings": "Gondola 9 AM-4 PM",
+        "entry_fee": "Gondola Phase 1 ₹740, Phase 2 ₹950",
+        "description": "Asia's premier skiing destination, featuring the Gulmarg Gondola (one of the world's highest cable cars) and pine meadows.",
+        "historical_background": (
+            "Originally named 'Gaurimarg' after Goddess Gauri, it was renamed 'Gulmarg' (Meadow of Flowers) by Sultan Yusuf Shah in the 16th century. "
+            "It became a favorite retreat for Mughal Emperor Jahangir and later a British hill station."
+        ),
+        "video_search": _yt_search("Gulmarg Gondola skiing Kashmir"),
+        "image": "assets/images/places/Gulmarg.jpg",
+        "image_file": "assets/images/places/Gulmarg.jpg",
+    },
+    {
+        "name": "Pahalgam (Valley of Shepherds)",
+        "category": "Kashmir",
+        "region": "Kashmir",
+        "distance": "~90–96 km from Srinagar (~2–2.5 hrs)",
+        "location_route": "Approximately 90–96 km from Srinagar, passing through the Anantnag area (around 2–2.5 hours by road). Travellers from Jammu should account for the Jammu–Srinagar journey plus the onward drive.",
+        "timings": "Open access",
+        "entry_fee": "Free (Pony rides extra)",
+        "description": "A tranquil valley along the Lidder River, famous for Betaab Valley, Aru Valley, and lush pine forests.",
+        "historical_background": (
+            "Pahalgam (meaning 'Village of Shepherds') has historically been a nomadic grazing ground. It serves as the starting base for the annual Amarnath Yatra pilgrimage."
+        ),
+        "video_search": _yt_search("Pahalgam Betaab Valley Kashmir"),
+        "image": "assets/images/places/Pahalgam.jpg",
+        "image_file": "assets/images/places/Pahalgam.jpg",
+    },
+    {
+        "name": "Sonamarg (Meadow of Gold)",
+        "category": "Kashmir",
+        "region": "Kashmir",
+        "distance": "~80–87 km from Srinagar (~2–3 hrs)",
+        "location_route": "Approximately 80–87 km from Srinagar along the Srinagar–Leh highway (NH-1), taking around 2–3 hours by road. Road conditions and seasonal restrictions may affect travel.",
+        "timings": "Open access, best May-Oct",
+        "entry_fee": "Free",
+        "description": "Gateway to the Thajiwas Glacier and high-altitude alpine lakes with breathtaking mountain scenery.",
+        "historical_background": (
+            "Sonamarg (Meadow of Gold) derived its name from the golden hue of its meadows in spring and its historical role as a gateway on the ancient Silk Road connecting Kashmir to Ladakh and Tibet."
+        ),
+        "video_search": _yt_search("Sonamarg Thajiwas Glacier Kashmir"),
+        "image": "assets/images/places/Sonmarg.jpg",
+        "image_file": "assets/images/places/Sonmarg.jpg",
+    },
+    {
+        "name": "Shankaracharya Temple, Srinagar",
+        "category": "Kashmir",
+        "region": "Kashmir",
+        "distance": "Within Srinagar city (Gopadri Hill)",
+        "location_route": "Located on Shankaracharya Hill within Srinagar, overlooking Dal Lake. Requires local travel from Srinagar city, followed by the permitted approach to the hilltop temple.",
+        "timings": "6 AM-8 PM",
+        "entry_fee": "Free",
+        "description": "An ancient hilltop temple dedicated to Lord Shiva, offering panoramic views of Srinagar city and Dal Lake.",
+        "historical_background": (
+            "Dedicated to Lord Shiva, the temple sits at a height of 1,100 feet above the valley floor. "
+            "Saint Adi Shankaracharya visited the site in the 9th century AD, consecrating it and giving the hill its enduring name."
+        ),
+        "video_search": _yt_search("Shankaracharya Temple Srinagar Kashmir"),
+        "image": "assets/images/places/Shankracharya Mandir.jpg",
+        "image_file": "assets/images/places/Shankracharya Mandir.jpg",
+    },
+    {
+        "name": "Kheer Bhawani Temple, Tulmulla",
+        "category": "Kashmir",
+        "region": "Kashmir",
+        "distance": "~25–30 km from Srinagar (~45–60 mins)",
+        "location_route": "Situated in Tulmulla, Ganderbal district, around 25–30 km from Srinagar. Usually reachable in 45–60 minutes by road.",
+        "timings": "6 AM-8 PM",
+        "entry_fee": "Free",
+        "description": "A revered Hindu shrine dedicated to Ragnya Devi, famous for its sacred spring whose color is believed to change dynamically.",
+        "historical_background": (
+            "Deeply venerated by Kashmiri Pandits, the temple surrounds a natural spring associated with Goddess Ragnya. "
+            "An annual mela on Jyeshta Ashtami draws thousands of devotees to Tulmulla."
+        ),
+        "video_search": _yt_search("Kheer Bhawani Temple Tulmulla Ganderbal"),
+        "image": "assets/images/places/Kheer Bhawani Mandir.jpg",
+        "image_file": "assets/images/places/Kheer Bhawani Mandir.jpg",
+    },
+    {
+        "name": "Verinag Spring and Mughal Garden",
+        "category": "Kashmir",
+        "region": "Kashmir",
+        "distance": "~78 km southeast of Srinagar (~2 hrs)",
+        "location_route": "Located in South Kashmir along the Jammu–Srinagar road corridor, approximately 78 km southeast of Srinagar. A potential sightseeing stop when travelling towards the Kashmir Valley.",
+        "timings": "9 AM-7 PM",
+        "entry_fee": "₹20",
+        "description": "The historic source of the Jhelum River, featuring an octagonal stone basin and lush Mughal garden built by Jahangir and Shah Jahan.",
+        "historical_background": (
+            "Emperor Jahangir was enchanted by the deep blue spring of Verinag and commissioned the octagonal stone basin in 1620 AD. "
+            "His son Shah Jahan later laid out the cascading Mughal garden surrounding it."
+        ),
+        "video_search": _yt_search("Verinag Spring Mughal Garden Kashmir"),
+        "image": "assets/images/places/Verinag.jpg",
+        "image_file": "assets/images/places/Verinag.jpg",
+    },
+    {
+        "name": "Achabal Mughal Garden",
+        "category": "Kashmir",
+        "region": "Kashmir",
+        "distance": "~58 km from Srinagar (~1.5 hrs)",
+        "location_route": "Located in Anantnag district, approximately 58 km from Srinagar, usually around 1.5 hours by road. It can be combined with other South Kashmir attractions.",
+        "timings": "9 AM-7 PM",
+        "entry_fee": "₹20",
+        "description": "An exquisite Mughal garden built by Empress Noor Jahan, known for its freshwater springs, terraced lawns, and majestic chinar trees.",
+        "historical_background": (
+            "Designed in 1620 AD by Empress Noor Jahan as a royal pleasure retreat, Achabal features water channels fed by natural mountain springs cascading over carved stone stepped falls."
+        ),
+        "video_search": _yt_search("Achabal Mughal Garden Anantnag Kashmir"),
+        "image": "assets/images/places/Achabal.jpg",
+        "image_file": "assets/images/places/Achabal.jpg",
+    },
+    {
+        "name": "Martand Sun Temple, Mattan",
+        "category": "Kashmir",
+        "region": "Kashmir",
+        "distance": "~60–65 km from Srinagar (~1.5–2 hrs)",
+        "location_route": "Located near Mattan in Anantnag district, roughly 60–65 km from Srinagar, usually around 1.5–2 hours by road. It can be combined with other South Kashmir destinations.",
+        "timings": "6 AM-7 PM",
+        "entry_fee": "Free",
+        "description": "Impressive 8th-century stone temple ruins dedicated to Surya (the Sun God), showcasing grand Kashmiri Hindu architecture.",
+        "historical_background": (
+            "Built by King Lalitaditya Muktapida of the Karkota dynasty in the 8th century AD, the Martand Sun Temple was a pinnacle of Kashmiri architecture, "
+            "blending Greek, Roman, and Indian stylistic elements atop a plateau overlooking the Kashmir Valley."
+        ),
+        "video_search": _yt_search("Martand Sun Temple Mattan Anantnag Kashmir"),
+        "image": "assets/images/places/Martand Sun Temple.jpg",
+        "image_file": "assets/images/places/Martand Sun Temple.jpg",
+    },
+    {
+        "name": "Sinthan Top",
+        "category": "Kashmir",
+        "region": "Kashmir",
+        "distance": "~105–130 km from Srinagar (~3–4.5 hrs)",
+        "location_route": "A high-altitude mountain pass reached via Anantnag, Kokernag and Daksum, roughly 105–130 km from Srinagar (3–4.5 hours by road). Access depends on weather and road conditions, especially in winter.",
+        "timings": "Daytime access (weather permitting)",
+        "entry_fee": "Free",
+        "description": "A majestic mountain pass (12,500 ft) connecting South Kashmir to Kishtwar, offering 360-degree views of snow-capped peaks.",
+        "historical_background": (
+            "Situated at an elevation of 3,748 metres on the Anantnag-Kishtwar road, Sinthan Top has emerged as a major offbeat destination in J&K, "
+            "offering panoramic views of both Kashmir Valley and the Jammu region."
+        ),
+        "video_search": _yt_search("Sinthan Top Anantnag Kashmir pass"),
+        "image": "assets/images/places/Sinthan top.jpg",
+        "image_file": "assets/images/places/Sinthan top.jpg",
+    },
+    {
+        "name": "Katra",
+        "category": "Pilgrimage Base",
+        "region": "Jammu",
+        "distance": "Base town (~45 km from Jammu)",
+        "location_route": "Located ~45 km from Jammu city, accessible via NH-44 and the Jammu-Udhampur-Katra rail line.",
+        "timings": "Open access, 24/7 yatra base",
+        "entry_fee": "Free (Yatra RFID Card mandatory)",
+        "description": "Base town for the sacred 13 km trek to Shri Mata Vaishno Devi Bhawan, nestled at the foot of Trikuta hills.",
+        "historical_background": (
+            "Historically a small village in the Reasi district, Katra grew into the primary base camp "
+            "for pilgrims visiting the holy shrine of Shri Mata Vaishno Devi. It now features modern hotel "
+            "infrastructure, market bazaars for dry fruits and offerings, and the main Yatra registration counters."
+        ),
+        "video_search": _yt_search("Katra base town Vaishno Devi Yatra"),
+        "image": "assets/images/places/vaishno devi.jpg",
+        "image_file": "assets/images/places/vaishno devi.jpg",
+    },
+    {
+        "name": "Kashmir Valley",
+        "category": "Kashmir",
+        "region": "Kashmir",
+        "distance": "~290 km from Jammu (~6–7 hrs)",
+        "location_route": "Located in northern Jammu & Kashmir, accessible from Jammu via NH-44 highway or direct flights to Srinagar Airport (SXR).",
+        "timings": "Open access, seasonal activities",
+        "entry_fee": "Varies by attraction",
+        "description": "Explore Srinagar's Dal Lake, Gulmarg's snow gondola, Pahalgam's pristine alpine streams, and Sonamarg's golden meadows.",
+        "historical_background": (
+            "The Kashmir Valley is renowned worldwide for its majestic Himalayan landscapes, serene lakes, royal Mughal gardens, "
+            "and rich cultural heritage spanning ancient Hindu and Buddhist eras to medieval Mughal patronage."
+        ),
+        "video_search": _yt_search("Kashmir Valley tourism Srinagar Gulmarg Pahalgam"),
+        "image": "assets/images/places/Dal Lake.jpg",
+        "image_file": "assets/images/places/Dal Lake.jpg",
     },
 ]
 
-CATEGORIES = ["On the trek route", "Nearby temple", "Nature", "Hill station", "Hill station / adventure", "Nature / heritage", "Jammu city"]
+CATEGORIES = ["On the trek route", "Nearby temple", "Nature", "Hill station", "Hill station / adventure", "Nature / heritage", "Jammu city", "Kashmir"]
 
 
 def get_places(category=None):

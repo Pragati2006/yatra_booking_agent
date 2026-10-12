@@ -1,3 +1,4 @@
+
 """
 agents/coordinator.py
 The orchestrator. Owns no data-fetching logic itself - it routes a
@@ -19,7 +20,7 @@ assembles their outputs into one response, which is the core of the
 This module doesn't touch Streamlit at all - app.py calls into it and
 handles all rendering, so the agent logic stays testable on its own.
 """
-
+import mongodb_agent
 import re
 import agent as legacy_agent
 import db
@@ -112,8 +113,32 @@ def process_trip_message(user_text, current_request=None, current_itinerary=None
             }
 
     plan = legacy_agent.build_plan(request)
-    reply = conversation_agent.craft_reply(user_text, plan["status"], plan, api_key=api_key, base_url=base_url)
+
+    # Use the selected transport mode for itinerary generation.
+    # This prevents the itinerary from defaulting to Train when
+    # the actual selected option is a Flight/Bus/etc.
+    if (
+        request
+        and not request.get("mode")
+        and plan.get("options")
+    ):
+        selected_option = plan["options"][0]
+        transport = selected_option.get("transport") or selected_option.get("flight")
+
+        if transport and transport.get("mode"):
+            request["mode"] = transport["mode"]
+
+    reply = conversation_agent.craft_reply(
+        user_text,
+        plan["status"],
+        plan,
+        api_key=api_key,
+        base_url=base_url,
+    )
+
     rec = recommendation_agent.generate_recommendation(request)
+
+# Sync or generate itinerary
 
     # Sync or generate itinerary
     itinerary = current_itinerary
@@ -159,12 +184,37 @@ def detect_intent(user_text):
 
 
 def answer_tourism_query(user_text, last_tourism_place=None):
-    """Routes a tourism/information question to the existing knowledge and
-    content agents and returns a formatted text reply.
-    Never touches transport search or darshan slots."""
-    knowledge = knowledge_agent.get_jk_tourism_knowledge(user_text, last_place=last_tourism_place)
+    """
+    Handles tourism queries while preserving the existing structured
+    responses, query classification, and follow-up context.
+
+    MongoDB retrieval is invoked through the LangChain agent.
+    The existing knowledge formatter remains in place for compatibility.
+    """
+
+    # Step 1: Query the MongoDB-powered LangChain agent.
+    # Failure here must not crash the existing tourism conversation.
+    mongodb_result = {}
+    mongodb_error = None
+
+    try:
+        mongodb_result = mongodb_agent.answer_mongodb_query(user_text)
+    except Exception as exc:
+        mongodb_error = str(exc)
+
+    # Step 2: Preserve the existing structured tourism knowledge.
+    # This keeps the formatter and conversational follow-ups working.
+    knowledge = knowledge_agent.get_jk_tourism_knowledge(
+        user_text,
+        last_place=last_tourism_place,
+    )
+
+    # Step 3: Generate the existing structured Markdown response.
     reply = conversation_agent.format_tourism_reply(knowledge)
-    return {
+
+    # Step 4: Return the original response fields and retain MongoDB
+    # retrieval information for debugging and verification.
+    result = {
         "intent": "TOURISM",
         "reply": reply,
         "plan": None,
@@ -172,8 +222,17 @@ def answer_tourism_query(user_text, last_tourism_place=None):
         "itinerary": None,
         "query_kind": knowledge.get("query_kind"),
         "last_tourism_place": knowledge.get("last_place"),
+        "mongodb_tool_results": mongodb_result.get("tool_results", []),
+        "mongodb_status": mongodb_result.get(
+            "status",
+            "error" if mongodb_error else "unknown",
+        ),
     }
 
+    if mongodb_error:
+        result["mongodb_error"] = mongodb_error
+
+    return result
 
 def process_weather_message(user_text, current_request=None):
     """Handles weather guidance queries using check_weather_tool."""
