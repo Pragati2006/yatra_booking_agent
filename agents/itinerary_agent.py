@@ -49,6 +49,370 @@ CANONICAL_PLACES = {
 }
 
 
+# -----------------------------------------------------------------------------
+# Destination Logistics & Realistic Feasibility Engine
+# -----------------------------------------------------------------------------
+
+DESTINATION_LOGISTICS = {
+    "Bhairavnath Temple": {
+        "region": "trek_route",
+        "base_hub": "Shri Mata Vaishno Devi Bhawan",
+        "visit_duration_hrs": 1.5,
+        "travel_time_from_katra_hrs": 0.5,
+        "travel_time_desc": "~3 km uphill from Bhawan or 5-min ropeway",
+        "exertion_level": "High",
+        "min_trip_days_required": 2,
+        "suitability": "Sacred completion shrine; traditionally visited right after Bhawan darshan.",
+        "estimated_transport_cost": "₹100 one-way ropeway or on foot",
+        "cost_type": "verified_ticket",
+    },
+    "Ardhkuwari Cave": {
+        "region": "trek_route",
+        "base_hub": "Trek Route (Garbh Joon)",
+        "visit_duration_hrs": 1.5,
+        "travel_time_from_katra_hrs": 3.0,
+        "travel_time_desc": "Roughly halfway up the 13 km trek from Katra",
+        "exertion_level": "High",
+        "min_trip_days_required": 2,
+        "suitability": "Natural midpoint resting shrine where Goddess meditated in Garbh Joon cave.",
+        "estimated_transport_cost": "Free entry (battery car ₹350 one-way where operational)",
+        "cost_type": "verified_ticket",
+    },
+    "Charan Paduka": {
+        "region": "trek_route",
+        "base_hub": "Trek Route (~1.5 km)",
+        "visit_duration_hrs": 0.5,
+        "travel_time_from_katra_hrs": 0.75,
+        "travel_time_desc": "~1.5 km from Katra base checkpost",
+        "exertion_level": "Moderate",
+        "min_trip_days_required": 2,
+        "suitability": "Low-effort sacred stop early on the trek trail marking the Goddess's footprints.",
+        "estimated_transport_cost": "Free (on foot / pony route)",
+        "cost_type": "verified_ticket",
+    },
+    "Ban Ganga": {
+        "region": "trek_route",
+        "base_hub": "Katra Base / Ban Ganga",
+        "visit_duration_hrs": 0.5,
+        "travel_time_from_katra_hrs": 0.25,
+        "travel_time_desc": "~1.5 km from Katra town",
+        "exertion_level": "Light",
+        "min_trip_days_required": 2,
+        "suitability": "Sacred stream where pilgrims traditionally cleanse before beginning the trek.",
+        "estimated_transport_cost": "Free",
+        "cost_type": "verified_ticket",
+    },
+    "Himkoti": {
+        "region": "trek_route",
+        "base_hub": "Tarakote Marg",
+        "visit_duration_hrs": 0.75,
+        "travel_time_from_katra_hrs": 2.5,
+        "travel_time_desc": "Midpoint along the newer Tarakote Marg route",
+        "exertion_level": "Moderate",
+        "min_trip_days_required": 2,
+        "suitability": "Scenic viewpoint with panoramic valley views and rest facilities on gentler slope.",
+        "estimated_transport_cost": "Free (battery car option available)",
+        "cost_type": "verified_ticket",
+    },
+    "Katra": {
+        "region": "katra_nearby",
+        "base_hub": "Katra Base Town",
+        "visit_duration_hrs": 2.0,
+        "travel_time_from_katra_hrs": 0.0,
+        "travel_time_desc": "Base town",
+        "exertion_level": "Light",
+        "min_trip_days_required": 2,
+        "suitability": "Vibrant pilgrim hub for RFID registration, dry fruits shopping, and dining.",
+        "estimated_transport_cost": "Walking / local auto ₹50-100",
+        "cost_type": "estimated_local",
+    },
+    "Nau Devi Cave Temple": {
+        "region": "katra_nearby",
+        "base_hub": "Katra Base Town",
+        "visit_duration_hrs": 1.0,
+        "travel_time_from_katra_hrs": 0.35,
+        "travel_time_desc": "~10 km from Katra (~20-25 mins by road)",
+        "exertion_level": "Light",
+        "min_trip_days_required": 3,
+        "suitability": "Quiet cave temple dedicated to the nine forms of Durga; excellent gentle recovery stop.",
+        "estimated_transport_cost": "Auto / taxi ₹200-400 roundtrip (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Baba Dhansar": {
+        "region": "katra_nearby",
+        "base_hub": "Katra Base Town",
+        "visit_duration_hrs": 1.5,
+        "travel_time_from_katra_hrs": 0.5,
+        "travel_time_desc": "~15 km from Katra (~30-35 mins by road)",
+        "exertion_level": "Light",
+        "min_trip_days_required": 3,
+        "suitability": "Tranquil waterfall and turquoise spring pools, perfect for relaxing after the yatra trek.",
+        "estimated_transport_cost": "Local taxi ₹600-1,000 roundtrip (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Jhajjar Kotli": {
+        "region": "katra_nearby",
+        "base_hub": "Katra Base Town",
+        "visit_duration_hrs": 1.5,
+        "travel_time_from_katra_hrs": 0.5,
+        "travel_time_desc": "~15-20 km from Katra (~35 mins by road)",
+        "exertion_level": "Light",
+        "min_trip_days_required": 3,
+        "suitability": "Popular picnic retreat along a fresh mountain stream with relaxing scenery.",
+        "estimated_transport_cost": "Local taxi ₹800-1,200 roundtrip (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Dera Baba Banda Bahadur": {
+        "region": "katra_nearby",
+        "base_hub": "Katra Base Town",
+        "visit_duration_hrs": 1.5,
+        "travel_time_from_katra_hrs": 0.75,
+        "travel_time_desc": "~28 km from Katra (~45-50 mins along Chenab banks)",
+        "exertion_level": "Light",
+        "min_trip_days_required": 3,
+        "suitability": "300-year-old historic Sikh gurudwara on the Chenab riverbank honoring Baba Banda Singh Bahadur.",
+        "estimated_transport_cost": "Taxi ₹1,200-1,800 roundtrip (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Raghunath Temple, Jammu": {
+        "region": "jammu_city",
+        "base_hub": "Jammu City",
+        "visit_duration_hrs": 1.5,
+        "travel_time_from_katra_hrs": 1.25,
+        "travel_time_desc": "~45-55 km from Katra (~1-1.5 hrs via NH-44)",
+        "exertion_level": "Light",
+        "min_trip_days_required": 3,
+        "suitability": "Grand Dogra-era temple complex in the heart of Jammu city, ideal on arrival or departure day.",
+        "estimated_transport_cost": "Jammu-Katra cab ₹1,300-2,000 one-way (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Bahu Fort & Bagh-e-Bahu": {
+        "region": "jammu_city",
+        "base_hub": "Jammu City",
+        "visit_duration_hrs": 1.5,
+        "travel_time_from_katra_hrs": 1.25,
+        "travel_time_desc": "~50 km from Katra (~1-1.5 hrs by road)",
+        "exertion_level": "Light",
+        "min_trip_days_required": 3,
+        "suitability": "Historic fort with Bawey Wali Mata temple and terraced gardens overlooking the Tawi river.",
+        "estimated_transport_cost": "Entry ₹10; cab from Katra ₹1,500-2,200 (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Amar Mahal Palace": {
+        "region": "jammu_city",
+        "base_hub": "Jammu City",
+        "visit_duration_hrs": 1.5,
+        "travel_time_from_katra_hrs": 1.25,
+        "travel_time_desc": "~48 km from Katra (~1-1.5 hrs by road)",
+        "exertion_level": "Light",
+        "min_trip_days_required": 3,
+        "suitability": "19th-century French-chateau-style palace museum housing historic miniature paintings and golden throne.",
+        "estimated_transport_cost": "Entry ₹20 adults; Jammu transit cab (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Peer Kho Cave Temple": {
+        "region": "jammu_city",
+        "base_hub": "Jammu City",
+        "visit_duration_hrs": 1.0,
+        "travel_time_from_katra_hrs": 1.25,
+        "travel_time_desc": "~48 km from Katra (~1.2 hrs by road)",
+        "exertion_level": "Light",
+        "min_trip_days_required": 3,
+        "suitability": "Ancient Shiva cave shrine with Ramayana ties overlooking the Tawi river in Jammu.",
+        "estimated_transport_cost": "Free entry; local auto / cab (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Mansar Lake": {
+        "region": "jammu_city",
+        "base_hub": "Jammu Outer Circuit",
+        "visit_duration_hrs": 2.0,
+        "travel_time_from_katra_hrs": 2.25,
+        "travel_time_desc": "~60 km from Jammu / ~90 km from Katra (~2-2.5 hrs)",
+        "exertion_level": "Light",
+        "min_trip_days_required": 4,
+        "suitability": "Sacred lake ringed by hills and temples with boating; best on an extended 4+ day itinerary.",
+        "estimated_transport_cost": "Full-day cab ₹2,200-3,200 (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Shiv Khori": {
+        "region": "distant_excursion",
+        "base_hub": "Ransoo / Reasi",
+        "visit_duration_hrs": 3.0,
+        "travel_time_from_katra_hrs": 3.0,
+        "travel_time_desc": "~80 km from Katra (~2.5-3 hrs each way via winding hill roads)",
+        "exertion_level": "High",
+        "min_trip_days_required": 5,
+        "suitability": "Sacred natural limestone cave shrine with 3 km walk from Ransoo base; requires a dedicated day following post-trek recovery on trips of 5+ days.",
+        "estimated_transport_cost": "Full-day taxi hire approx. ₹2,500-3,800 (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Patnitop": {
+        "region": "distant_excursion",
+        "base_hub": "Patnitop / Ramban",
+        "visit_duration_hrs": 4.0,
+        "travel_time_from_katra_hrs": 3.5,
+        "travel_time_desc": "~85 km from Katra / ~112 km from Jammu (~3-3.5 hrs mountain drive each way, ~7 hrs roundtrip)",
+        "exertion_level": "Moderate",
+        "min_trip_days_required": 5,
+        "suitability": "Premier Himalayan hill resort with pine meadows and panoramic Chenab valley views; requires a full dedicated day following post-trek recovery on trips of 5+ days.",
+        "estimated_transport_cost": "Full-day hill taxi hire approx. ₹3,000-4,500 (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Sanasar": {
+        "region": "distant_excursion",
+        "base_hub": "Patnitop / Sanasar",
+        "visit_duration_hrs": 3.0,
+        "travel_time_from_katra_hrs": 4.0,
+        "travel_time_desc": "~20 km beyond Patnitop (~3.5-4 hrs from Katra each way)",
+        "exertion_level": "Moderate",
+        "min_trip_days_required": 5,
+        "suitability": "Scenic cup-shaped alpine meadow for eco-tourism and paragliding near Patnitop; requires a dedicated day following post-trek recovery on trips of 5+ days.",
+        "estimated_transport_cost": "Full-day hill cab combined with Patnitop approx. ₹3,500-5,000 (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Srinagar (Dal Lake & Gardens)": {
+        "region": "kashmir",
+        "base_hub": "Srinagar, Kashmir",
+        "visit_duration_hrs": 5.0,
+        "travel_time_from_katra_hrs": 7.0,
+        "travel_time_desc": "~290 km from Jammu (~6-7 hrs via NH-44 tunnel corridor or direct flight)",
+        "exertion_level": "Light",
+        "min_trip_days_required": 6,
+        "suitability": "Summer capital of J&K with iconic Dal Lake shikaras and royal Mughal gardens; requires a multi-day Kashmir extension (6+ days).",
+        "estimated_transport_cost": "Flight or private cab ₹5,000-8,000+ (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Gulmarg (Snow Meadow)": {
+        "region": "kashmir",
+        "base_hub": "Gulmarg, Kashmir",
+        "visit_duration_hrs": 4.0,
+        "travel_time_from_katra_hrs": 8.0,
+        "travel_time_desc": "~60 km from Srinagar (~1.5-2 hrs onward drive)",
+        "exertion_level": "Moderate",
+        "min_trip_days_required": 6,
+        "suitability": "Alpine snow meadow and world-class gondola cable car; requires a multi-day Kashmir tour.",
+        "estimated_transport_cost": "Gondola ₹740-950 verified; cab from Srinagar ₹2,000-3,000 (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Pahalgam (Valley of Shepherds)": {
+        "region": "kashmir",
+        "base_hub": "Pahalgam, Kashmir",
+        "visit_duration_hrs": 4.0,
+        "travel_time_from_katra_hrs": 8.0,
+        "travel_time_desc": "~90 km from Srinagar (~2-2.5 hrs onward drive)",
+        "exertion_level": "Moderate",
+        "min_trip_days_required": 6,
+        "suitability": "Scenic Lidder river valley, pine forests, and Betaab Valley; requires a multi-day Kashmir tour.",
+        "estimated_transport_cost": "Cab from Srinagar approx. ₹2,500-3,500 (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Sonamarg (Meadow of Gold)": {
+        "region": "kashmir",
+        "base_hub": "Sonamarg, Kashmir",
+        "visit_duration_hrs": 4.0,
+        "travel_time_from_katra_hrs": 8.5,
+        "travel_time_desc": "~80 km from Srinagar (~2.5 hrs onward along NH-1)",
+        "exertion_level": "Moderate",
+        "min_trip_days_required": 6,
+        "suitability": "Gateway to Thajiwas Glacier and Sindh valley; requires a dedicated Kashmir tour.",
+        "estimated_transport_cost": "Cab from Srinagar approx. ₹2,800-3,800 (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Shankaracharya Temple, Srinagar": {
+        "region": "kashmir",
+        "base_hub": "Srinagar, Kashmir",
+        "visit_duration_hrs": 1.5,
+        "travel_time_from_katra_hrs": 7.0,
+        "travel_time_desc": "Hilltop within Srinagar city overlooking Dal Lake",
+        "exertion_level": "Moderate",
+        "min_trip_days_required": 6,
+        "suitability": "Ancient hilltop temple to Shiva consecrated by Adi Shankaracharya; requires Kashmir base.",
+        "estimated_transport_cost": "Local Srinagar auto/cab (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Kheer Bhawani Temple, Tulmulla": {
+        "region": "kashmir",
+        "base_hub": "Ganderbal, Kashmir",
+        "visit_duration_hrs": 1.5,
+        "travel_time_from_katra_hrs": 7.5,
+        "travel_time_desc": "~25 km from Srinagar (~45 mins by road)",
+        "exertion_level": "Light",
+        "min_trip_days_required": 6,
+        "suitability": "Sacred spring shrine deeply venerated by Kashmiri Pandits; requires Kashmir base.",
+        "estimated_transport_cost": "Cab from Srinagar approx. ₹1,200-1,800 (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Verinag Spring and Mughal Garden": {
+        "region": "kashmir",
+        "base_hub": "Anantnag, Kashmir",
+        "visit_duration_hrs": 1.5,
+        "travel_time_from_katra_hrs": 5.5,
+        "travel_time_desc": "~78 km south of Srinagar along Jammu-Srinagar corridor",
+        "exertion_level": "Light",
+        "min_trip_days_required": 5,
+        "suitability": "Historic octagonal source of Jhelum River and Mughal garden; en route to Kashmir valley.",
+        "estimated_transport_cost": "Entry ₹20; highway cab stop (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Achabal Mughal Garden": {
+        "region": "kashmir",
+        "base_hub": "Anantnag, Kashmir",
+        "visit_duration_hrs": 1.5,
+        "travel_time_from_katra_hrs": 6.5,
+        "travel_time_desc": "~58 km from Srinagar (~1.5 hrs by road)",
+        "exertion_level": "Light",
+        "min_trip_days_required": 6,
+        "suitability": "Royal pleasure retreat designed by Empress Noor Jahan with stepped water cascades.",
+        "estimated_transport_cost": "Entry ₹20; cab from Srinagar (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Martand Sun Temple, Mattan": {
+        "region": "kashmir",
+        "base_hub": "Anantnag, Kashmir",
+        "visit_duration_hrs": 1.5,
+        "travel_time_from_katra_hrs": 6.5,
+        "travel_time_desc": "~64 km from Srinagar (~1.5-2 hrs by road)",
+        "exertion_level": "Light",
+        "min_trip_days_required": 6,
+        "suitability": "8th-century grand stone temple ruins showcasing ancient Kashmiri Hindu architecture.",
+        "estimated_transport_cost": "Free entry; cab from Srinagar (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Sinthan Top": {
+        "region": "kashmir",
+        "base_hub": "Kishtwar / Anantnag",
+        "visit_duration_hrs": 2.5,
+        "travel_time_from_katra_hrs": 7.5,
+        "travel_time_desc": "~115 km from Srinagar (3-4.5 hrs mountain pass road)",
+        "exertion_level": "Moderate",
+        "min_trip_days_required": 6,
+        "suitability": "High-altitude mountain pass (12,500 ft) connecting South Kashmir to Kishtwar.",
+        "estimated_transport_cost": "SUV hire required (Estimated)",
+        "cost_type": "estimated_local",
+    },
+    "Kashmir Valley": {
+        "region": "kashmir",
+        "base_hub": "Kashmir Region",
+        "visit_duration_hrs": 8.0,
+        "travel_time_from_katra_hrs": 7.0,
+        "travel_time_desc": "~290 km from Jammu via NH-44 or flight",
+        "exertion_level": "Light",
+        "min_trip_days_required": 6,
+        "suitability": "Encompasses Srinagar, Gulmarg, and Pahalgam; requires a multi-day Kashmir holiday.",
+        "estimated_transport_cost": "Varies by circuit (Estimated)",
+        "cost_type": "estimated_local",
+    },
+}
+
+
+class ItineraryList(list):
+    """Subclass of list that carries itinerary feasibility metadata while preserving full list semantics."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.infeasible_places = []
+        self.feasible_places = []
+
+
 def _fmt_date(d):
     try:
         return datetime.strptime(d, "%Y-%m-%d").strftime("%a, %d %b %Y")
@@ -56,133 +420,462 @@ def _fmt_date(d):
         return str(d)
 
 
-def build_itinerary(option, hotel=None, hotel_nights=0, sightseeing_places=None, request=None):
-    """Returns a list of day dicts: {day_number, date, title, activities: [str, ...]}
-    dynamically respecting the requested trip duration from request."""
-    tr = option.get("transport") or option.get("flight")
-    s = option["slot"]
-    sightseeing_places = sightseeing_places or []
+def get_destination_logistics(place_name: str) -> dict:
+    if not place_name:
+        return None
+    canonical = match_place_name(place_name)
+    if canonical and canonical in DESTINATION_LOGISTICS:
+        return DESTINATION_LOGISTICS[canonical]
+    if place_name in DESTINATION_LOGISTICS:
+        return DESTINATION_LOGISTICS[place_name]
+    return None
 
+
+def evaluate_sightseeing_feasibility(places: list, duration_days: int, pace: str = "balanced") -> dict:
+    """
+    Deterministically evaluates whether selected sightseeing destinations
+    realistically fit within the given trip duration and pacing constraints.
+    Returns: {"feasible": [str, ...], "infeasible": [{"place": str, "reason": str, "suggestion": str}, ...]}
+    """
+    feasible = []
+    infeasible = []
+    dur = max(1, duration_days or 4)
+    pace_lower = (pace or "balanced").lower()
+
+    # Number of available non-departure sightseeing days (Day 3 to N-1)
+    available_sightseeing_days = max(0, dur - 3) if dur >= 4 else 0
+
+    # Max off-trek places allowed based on available days and pace
+    if pace_lower == "relaxed":
+        max_per_day = 1
+    elif pace_lower == "packed":
+        max_per_day = 2
+    else:  # balanced
+        max_per_day = 1 if available_sightseeing_days <= 1 else 2
+
+    max_capacity = available_sightseeing_days * max_per_day
+
+    for raw_p in places or []:
+        logistics = get_destination_logistics(raw_p)
+        canonical = match_place_name(raw_p) or (raw_p if logistics else None)
+
+        # 1. Reject uncatalogued / ungrounded destinations
+        if not logistics or not canonical:
+            r_text = (
+                f"'{raw_p}' could not be verified against the supported Jammu & Kashmir destination catalogue."
+            )
+            s_text = (
+                "Please select a verified pilgrimage shrine or supported destination from the catalogue "
+                "(e.g., Baba Dhansar, Nau Devi Cave Temple, Patnitop, Shiv Khori)."
+            )
+            infeasible.append({"place": raw_p, "reason": r_text, "suggestion": s_text})
+            continue
+
+        region = logistics.get("region", "katra_nearby")
+        min_days = logistics.get("min_trip_days_required", 3)
+
+        # 2. Trek route shrines (Bhairavnath, Ardhkuwari, etc.) are visited during the Day 2 holy trek
+        if region == "trek_route":
+            if dur < 2:
+                r_text = f"{canonical} is on the sacred trek route and requires at least a 2-day trip."
+                s_text = "Extend your trip duration to at least 2 days."
+                infeasible.append({"place": canonical, "reason": r_text, "suggestion": s_text})
+            else:
+                if canonical not in feasible:
+                    feasible.append(canonical)
+            continue
+
+        # 3. Off-trek destinations require an intermediate non-departure day
+        if available_sightseeing_days == 0:
+            if region == "distant_excursion":
+                r_text = (
+                    f"{canonical} is ~85 km from Katra and requires a ~7-hour roundtrip mountain road drive. "
+                    f"On a {dur}-day trip, Day 1 is arrival & registration, Day 2 is the 26 km Vaishno Devi trek, "
+                    f"and Day {dur} is departure. Scheduling {canonical} would cause severe physical exhaustion "
+                    f"and risks missing your departure transport."
+                )
+                s_text = (
+                    f"Consider extending your trip to at least {min_days} days to enjoy a dedicated {canonical} day trip, "
+                    "or visit nearby Baba Dhansar (~30 mins from Katra) on your recovery day instead."
+                )
+            elif region == "kashmir":
+                r_text = (
+                    f"Kashmir Valley destinations like {canonical} are ~290 km from Jammu (6–7 hours by road) "
+                    "and require a dedicated 6+ day holiday based in Srinagar, not a short Katra pilgrimage."
+                )
+                s_text = "Focus this sacred trip on Katra and Jammu shrines, and plan Kashmir as a separate extended itinerary."
+            else:
+                r_text = (
+                    f"A {dur}-day trip reserves Day 1 for arrival and Katra registration, Day 2 for the holy 26 km Vaishno Devi trek, "
+                    f"and Day {dur} for departure. There are no intermediate days available to visit {canonical}. "
+                    f"A trip duration of at least 4 days is required to include off-trek sightseeing."
+                )
+                s_text = (
+                    f"Consider extending your trip to at least 4 days to visit {canonical}, "
+                    "or focus this 3-day trip on the holy trek shrines (Ardhkuwari Cave and Bhairavnath Temple)."
+                )
+            infeasible.append({"place": canonical, "reason": r_text, "suggestion": s_text})
+            continue
+
+        # 4. Check trip duration constraint for distant/demanding excursions
+        if dur < min_days:
+            if region == "distant_excursion":
+                r_text = (
+                    f"{canonical} is ~85 km from Katra and requires a ~7-hour roundtrip mountain road drive. "
+                    f"On a {dur}-day trip, Day 1 is arrival & registration, Day 2 is the 26 km Vaishno Devi trek, "
+                    f"Day 3 is reserved for essential post-trek muscle recovery, and Day {dur} is departure. "
+                    f"Scheduling {canonical} would cause severe physical exhaustion and violate post-trek recovery. "
+                    f"A trip duration of at least {min_days} days is required to schedule {canonical} on a dedicated day after recovery."
+                )
+                s_text = (
+                    f"Consider extending your trip to at least {min_days} days to enjoy a dedicated {canonical} day trip, "
+                    "or visit nearby Baba Dhansar (~30 mins from Katra) on your recovery day instead."
+                )
+            elif region == "kashmir":
+                r_text = (
+                    f"Kashmir Valley destinations like {canonical} are ~290 km from Jammu (6–7 hours by road) "
+                    "and require a dedicated 6+ day holiday based in Srinagar, not a short Katra pilgrimage."
+                )
+                s_text = "Focus this sacred trip on Katra and Jammu shrines, and plan Kashmir as a separate extended itinerary."
+            else:
+                r_text = (
+                    f"{canonical} requires at least a {min_days}-day itinerary to ensure adequate time for "
+                    "both the core pilgrimage darshan and return transit."
+                )
+                s_text = f"Extend your trip duration to {min_days} days or choose local Katra shrines."
+
+            infeasible.append({"place": canonical, "reason": r_text, "suggestion": s_text})
+            continue
+
+        # 5. Check daily capacity constraint for off-trek places
+        off_trek_feasible = [p for p in feasible if get_destination_logistics(p) and get_destination_logistics(p).get("region") != "trek_route"]
+        if len(off_trek_feasible) >= max_capacity:
+            r_text = (
+                f"Your selected pace is '{pace_lower.capitalize()}'. To maintain essential rest buffers after the "
+                f"high-exertion trek, the schedule allows a maximum of {max_capacity} additional sightseeing spot{'s' if max_capacity > 1 else ''} "
+                f"across your {available_sightseeing_days} available intermediate day{'s' if available_sightseeing_days > 1 else ''}."
+            )
+            s_text = f"Remove one of your earlier selected places or extend your trip duration to accommodate {canonical}."
+            infeasible.append({"place": canonical, "reason": r_text, "suggestion": s_text})
+            continue
+
+        if canonical not in feasible:
+            feasible.append(canonical)
+
+    return {"feasible": feasible, "infeasible": infeasible}
+
+
+def build_itinerary(option, hotel=None, hotel_nights=0, sightseeing_places=None, request=None):
+    """
+    Builds a realistic, deterministic day-wise itinerary list matching exact trip duration.
+    Enforces:
+    1. Exactly N days for an N-day trip (never N+1 or N-1).
+    2. Day 2 is dedicated exclusively to the high-exertion Vaishno Devi trek & darshan.
+       No Patnitop or distant excursions are scheduled on Day 2.
+    3. Day 3 preserves post-trek recovery time when duration permits (N >= 4).
+    4. Distant excursions (Patnitop, Shiv Khori) require N >= 4 and conservative travel estimates.
+    5. Infeasible places are identified and explained in metadata.
+    """
+    tr = option.get("transport") or option.get("flight") or {}
+    s = option.get("slot") or {"category": "Normal Darshan", "slot_time": "12:00 PM", "slot_date": tr.get("travel_date", "")}
     req = request or {}
+
     duration = req.get("duration_days")
     if not duration:
         base_days = 2 + (1 if sightseeing_places else 0) + (1 if hotel or hotel_nights else 0)
         duration = max(3, base_days)
+    duration = int(duration)
 
-    days = []
-    travel_date = tr["travel_date"]
-    darshan_date = s["slot_date"]
-    origin = tr.get("origin", "Delhi")
-    mode = tr.get("mode", "transport").lower()
-    operator = tr.get("operator", "")
+    travel_date = tr.get("travel_date") or req.get("start_date") or datetime.now().strftime("%Y-%m-%d")
+    origin = tr.get("origin") or req.get("origin") or "Delhi"
+    mode = (tr.get("mode") or req.get("mode") or "train").lower()
+    operator = tr.get("operator") or ("Northern Railways" if mode == "train" else "Air Carrier")
     transport_no = tr.get("transport_no", "")
-    dep_time = tr.get("departure_time", "")
+    dep_time = tr.get("departure_time") or "06:00 AM"
+    pace = req.get("travel_style") or "balanced"
 
+    hotel_name = hotel.get("name", "Certified Katra Hotel") if hotel else "Katra Pilgrim Guesthouse"
+    hotel_cat = hotel.get("category", "Standard") if hotel else "Standard"
+
+    try:
+        start_dt = datetime.strptime(travel_date, "%Y-%m-%d")
+    except Exception:
+        start_dt = datetime.now()
+
+    # Feasibility evaluation
+    raw_sightseeing = list(sightseeing_places or [])
+    feasibility = evaluate_sightseeing_feasibility(raw_sightseeing, duration, pace=pace)
+    feasible_places = feasibility["feasible"]
+    infeasible_places = feasibility["infeasible"]
+
+    sight_choice = (req.get("sightseeing_choice") or "").lower()
+
+    # Recommended fallback if user provided no places and did not choose "later"
+    if not feasible_places and not raw_sightseeing and (sight_choice != "later"):
+        if duration <= 3:
+            recommended_default = []
+        elif duration == 4:
+            recommended_default = ["Baba Dhansar"]
+        else:
+            recommended_default = ["Baba Dhansar", "Patnitop"]
+        for p in recommended_default:
+            if p not in feasible_places:
+                feasible_places.append(p)
+
+    days = ItineraryList()
+    days.infeasible_places = infeasible_places
+    days.feasible_places = feasible_places
+
+    # -------------------------------------------------------------------------
+    # DAY 1: Arrival, Base Orientation & Yatra Registration
+    # -------------------------------------------------------------------------
+    day1_date_str = _fmt_date(start_dt.strftime("%Y-%m-%d"))
     if mode == "flight":
-        transport_summary = f"Fly with {operator} ({transport_no}) departing at {dep_time} from {tr['origin']} to {tr['destination']}"
-    elif mode == "train":
-        transport_summary = f"Travel by Train via {operator} - {transport_no} departing at {dep_time} from {tr['origin']} to {tr['destination']}"
+        t_summary = f"Fly with {operator} ({transport_no}) departing at {dep_time} from {origin} to Jammu Airport"
+        t_transfer = "Scenic taxi transfer from Jammu Airport to Katra base town (~1.5–2 hrs via NH-44)"
+        t_time = "~1.5–2 hrs road transfer from Jammu"
+        t_cost = "₹1,300–2,500 private cab (Estimated)"
     else:
-        transport_summary = f"Travel via {operator} {transport_no} from {tr['origin']} to {tr['destination']}"
+        t_summary = f"Travel by Train via {operator} ({transport_no}) departing at {dep_time} from {origin} to Shri Mata Vaishno Devi Katra"
+        t_transfer = "Direct arrival at Shri Mata Vaishno Devi Katra railway station and transfer to hotel"
+        t_time = "~15–20 mins local transfer to Katra hotel"
+        t_cost = "Included in train ticket; local auto ₹100–150"
 
-    if tr.get("route_note"):
-        transport_summary += f" ({tr['route_note']})"
+    day1_activities = [
+        f"10:00 AM – 01:30 PM: {t_summary}",
+        f"01:30 PM – 03:00 PM: {t_transfer} and check-in at {hotel_name} ({hotel_cat})",
+        "03:30 PM – 05:00 PM: Obtain mandatory Yatra RFID Registration Card at Katra Yatra Registration Counter",
+        "05:30 PM – 07:30 PM: Evening Katra market stroll (dry fruits, prasad) & orientation",
+        "08:00 PM – Onward: Early dinner and overnight rest in Katra to prepare for tomorrow's holy trek",
+    ]
 
-    start_dt = datetime.strptime(travel_date, "%Y-%m-%d")
+    days.append({
+        "day_number": 1,
+        "date": day1_date_str,
+        "title": "Arrival, Base Orientation & Yatra Registration",
+        "base_location": "Katra Base Town",
+        "exertion_level": "Light",
+        "activities": day1_activities,
+        "rest_buffers": "1.5 hrs post-arrival rest and orientation buffer",
+        "travel_time_est": t_time,
+        "travel_cost_est": t_cost,
+        "booking_notes": "Mandatory Yatra RFID Registration Card must be collected in person at Katra counters before beginning the trek.",
+        "practicality_note": "Ensures comfortable arrival, hotel check-in, mandatory RFID slip registration, and early overnight rest before tomorrow's trek.",
+    })
 
-    # Day 1: Arrival & Check-in
-    day1_activities = [transport_summary]
-    if mode == "flight":
-        day1_activities.append("Taxi transfer from Jammu Airport to Katra (~1.5-2 hrs)")
+    # -------------------------------------------------------------------------
+    # DAY 2: Dedicated Holy Yatra & Darshan Trek (High Exertion)
+    # -------------------------------------------------------------------------
+    day2_dt = start_dt + timedelta(days=1)
+    day2_date_str = _fmt_date(day2_dt.strftime("%Y-%m-%d"))
+    slot_cat = s.get("category", "Normal Darshan")
+    slot_time = s.get("slot_time", "12:00 PM")
+
+    if slot_cat == "Helicopter Darshan":
+        trek_desc = "07:30 AM – 08:30 AM: Helicopter flight from Katra helipad to Sanjichhat (approx. 8 mins), followed by a gentle 2.5 km walk to Bhawan"
+        trek_descent = "03:30 PM – 05:00 PM: Return flight via Sanjichhat helipad to Katra base"
     else:
-        day1_activities.append("Direct arrival in Katra base town")
+        trek_desc = "05:30 AM – 06:30 AM: Early morning trek departure from Katra base via Ban Ganga / Tarakote Marg (13 km ascent)"
+        trek_descent = "04:30 PM – 08:30 PM: Scenic descent back to Katra base town and overnight muscle recovery"
 
-    if hotel:
-        day1_activities.append(f"Check in at {hotel['name']} ({hotel['category']})")
-    day1_activities.append("Obtain mandatory Yatra Slip / Parchi at Katra counter")
-    days.append({"day_number": 1, "date": _fmt_date(travel_date), "title": "Arrival & Check-in", "activities": day1_activities})
+    day2_activities = [
+        trek_desc,
+        "08:00 AM – 09:30 AM: En route darshan pause at Charan Paduka & Ardhkuwari Cave (Garbh Joon)",
+        f"11:00 AM – 01:30 PM: Sacred Darshan of Maa Vaishno Devi Ji at Holy Bhawan ({slot_cat} at {slot_time})",
+        "02:00 PM – 03:30 PM: Ascent to Bhairavnath Temple via ropeway / uphill trek (completes the pilgrimage)",
+        trek_descent,
+    ]
 
-    # Day 2: Pilgrimage & Darshan
-    darshan_activities = []
-    if s["category"] == "Helicopter Darshan":
-        darshan_activities.append("Helicopter from Katra to Sanjichhat, then a short walk to Bhawan")
-    else:
-        darshan_activities.append("Trek (or pony/palki) from Katra to Bhawan via the traditional route or Tarakote Marg")
-    darshan_activities.append(f"{s['category']} at {s['slot_time']}")
-    darshan_activities.append("Visit Bhairavnath Temple after darshan (traditionally considered part of completing the yatra)")
-    days.append({"day_number": 2, "date": _fmt_date(darshan_date), "title": "Pilgrimage & Darshan", "activities": darshan_activities})
+    days.append({
+        "day_number": 2,
+        "date": day2_date_str,
+        "title": "Dedicated Holy Yatra & Darshan Trek",
+        "base_location": "Katra ➔ Shri Mata Vaishno Devi Bhawan",
+        "exertion_level": "High",
+        "activities": day2_activities,
+        "rest_buffers": "Mid-trek rest intervals at Himkoti & Sanjichhat; overnight recovery following descent",
+        "travel_time_est": "5–7 hrs ascent on foot (or 8 mins by helicopter); 4–5 hrs return descent",
+        "travel_cost_est": "Free trek on foot; ropeway to Bhairavnath ₹100 verified ticket",
+        "booking_notes": "Keep RFID card accessible for barcode scanning at Ban Ganga, Ardhkuwari, and Bhawan checkpoints.",
+        "practicality_note": "Vaishno Devi trek is a physically demanding 13 km ascent + descent requiring a full dedicated day with zero conflicting travel or distant excursions.",
+    })
 
-    # Day 3 to Day (duration - 1): Intermediate Days (Sightseeing / Rest / Excursions)
-    suggested_places = ["Patnitop", "Baba Dhansar", "Ardhkuwari Cave", "Mansar Lake", "Shiv Khori", "Nau Devi Cave Temple"]
-    sight_idx = 0
+    # -------------------------------------------------------------------------
+    # INTERMEDIATE DAYS: Day 3 to Day (duration - 1)
+    # -------------------------------------------------------------------------
+    recovery_places = []
+    excursion_places = []
+
+    for fp in feasible_places:
+        p_log = get_destination_logistics(fp) or {}
+        reg = p_log.get("region", "katra_nearby")
+        ex = p_log.get("exertion_level", "Light")
+        if reg == "trek_route":
+            pass  # Handled as sacred en-route shrines on Day 2
+        elif reg in ("katra_nearby", "jammu_city") and ex == "Light":
+            recovery_places.append(fp)
+        else:
+            excursion_places.append(fp)
 
     for d in range(3, duration):
-        day_date = start_dt + timedelta(days=d - 1)
-        day_str = _fmt_date(day_date.strftime("%Y-%m-%d"))
+        day_dt = start_dt + timedelta(days=d - 1)
+        day_date_str = _fmt_date(day_dt.strftime("%Y-%m-%d"))
 
-        if sight_idx < len(sightseeing_places):
-            p_name = sightseeing_places[sight_idx]
+        # Day 3 is Post-Trek Recovery Day (STRICTLY PROTECTED FOR GENTLE ACTIVITIES)
+        # Demanding excursions like Patnitop, Sanasar, Shiv Khori are NEVER scheduled on Day 3!
+        if d == 3:
+            if recovery_places:
+                chosen_place = recovery_places.pop(0)
+                p_log = get_destination_logistics(chosen_place) or {}
+                # Check if a second gentle recovery place can be combined on Day 3 (e.g. 4-day trip with 2 local spots)
+                second_place = recovery_places.pop(0) if (recovery_places and (duration <= 4) and pace != "relaxed") else None
+                p_log2 = get_destination_logistics(second_place) if second_place else None
+
+                day3_title = f"Post-Trek Recovery & Local Sightseeing ({chosen_place}{f' & {second_place}' if second_place else ''})"
+                day3_base = "Katra Base Town"
+                day3_exertion = "Light"
+                day3_travel_time = p_log.get("travel_time_desc", "~30-35 mins by road")
+                day3_cost = p_log.get("estimated_transport_cost", "Local taxi approx. ₹600-1,000 roundtrip (Estimated)")
+                day3_note = "Provides vital post-trek physical recovery with a relaxed morning wake-up and low-impact afternoon nature/temple visits."
+
+                if second_place:
+                    day3_acts = [
+                        "09:00 AM – 11:30 AM: Leisure breakfast, sleep-in, and foot muscle recovery at hotel",
+                        f"12:30 PM – 03:00 PM: Afternoon gentle excursion to {chosen_place} ({day3_travel_time})",
+                        f"03:30 PM – 05:30 PM: Short visit to {second_place} ({p_log2.get('travel_time_desc', 'Local Katra area')})",
+                        "06:30 PM – 08:00 PM: Local Katra market stroll for walnuts, saffron, and yatra souvenirs",
+                        "08:30 PM – 09:30 PM: Traditional Dogra dinner in Katra town",
+                    ]
+                else:
+                    day3_acts = [
+                        "09:00 AM – 11:30 AM: Leisure breakfast, sleep-in, and foot muscle recovery at hotel",
+                        f"12:30 PM – 03:30 PM: Afternoon gentle excursion to {chosen_place} ({day3_travel_time})",
+                        "04:30 PM – 07:00 PM: Local Katra market stroll for walnuts, saffron, and yatra souvenirs",
+                        "07:30 PM – 09:30 PM: Traditional Dogra dinner in Katra town",
+                    ]
+            else:
+                day3_title = "Post-Trek Recovery & Katra Town Leisure"
+                day3_base = "Katra Base Town"
+                day3_exertion = "Light"
+                day3_travel_time = "Local Katra town"
+                day3_cost = "Local expenses only"
+                if sight_choice == "later":
+                    day3_note = "Provides vital post-trek physical recovery. Sightseeing options left open to decide locally upon arrival in Katra."
+                else:
+                    day3_note = "Provides vital post-trek physical recovery. Schedule kept open for muscle relaxation, temple visits, or local Katra bazaars."
+                day3_acts = [
+                    "09:00 AM – 11:30 AM: Leisure breakfast, sleep-in, and foot muscle recovery at hotel",
+                    "12:30 PM – 03:30 PM: Relaxed afternoon in Katra town; explore local markets or rest at hotel",
+                    "04:30 PM – 07:00 PM: Evening stroll at leisure in Katra town (optional local sightseeing)",
+                    "07:30 PM – 09:30 PM: Traditional Dogra dinner in Katra town",
+                ]
+
             days.append({
-                "day_number": d,
-                "date": day_str,
-                "title": f"Sightseeing — {p_name}",
-                "activities": [
-                    f"Visit {p_name}",
-                    "Local sightseeing and exploration around Katra / Jammu region",
-                ],
+                "day_number": 3,
+                "date": day_date_str,
+                "title": day3_title,
+                "base_location": day3_base,
+                "exertion_level": day3_exertion,
+                "activities": day3_acts,
+                "rest_buffers": "Full morning sleep-in and recovery buffer",
+                "travel_time_est": day3_travel_time,
+                "travel_cost_est": day3_cost,
+                "booking_notes": "Local taxi can be hired from Katra taxi stand or booked via hotel desk.",
+                "practicality_note": day3_note,
             })
-            sight_idx += 1
-        elif d == 3:
-            p_sug = suggested_places[0]
-            days.append({
-                "day_number": d,
-                "date": day_str,
-                "title": "Sightseeing & Exploration",
-                "activities": [
-                    f"Visit {p_sug}",
-                    "Local Katra market exploration & souvenirs",
-                ],
-            })
-        elif d == 4:
-            p_sug = suggested_places[1]
-            days.append({
-                "day_number": d,
-                "date": day_str,
-                "title": "Rest & Local Exploration",
-                "activities": [
-                    f"Visit {p_sug}",
-                    "Rest and local dining in Katra town",
-                ],
-            })
+
         else:
-            p_sug = suggested_places[(d - 3) % len(suggested_places)]
+            # Day 4+ Excursion / Regional Circuit (Appropriate for demanding excursions like Patnitop)
+            if excursion_places:
+                chosen_place = excursion_places.pop(0)
+                p_log = get_destination_logistics(chosen_place) or {}
+                day_title = f"Regional Excursion — {chosen_place}"
+                day_base = f"{chosen_place} Circuit"
+                day_exertion = p_log.get("exertion_level", "Moderate")
+                day_tt = p_log.get("travel_time_desc", "~3.5 hrs drive each way")
+                day_cost = p_log.get("estimated_transport_cost", "Taxi hire (Estimated)")
+                day_acts = [
+                    f"07:30 AM – 11:00 AM: Scenic mountain drive to {chosen_place} ({day_tt})",
+                    f"11:30 AM – 03:00 PM: Guided exploration of {chosen_place} meadows and viewpoints",
+                    "03:30 PM – 06:30 PM: Scenic return journey to Katra / Jammu base",
+                    "07:30 PM – 09:30 PM: Relaxed evening dining and next-day departure packing",
+                ]
+                day_note = f"Geographically clustered visit to {chosen_place} scheduled comfortably after post-trek recovery, leaving ample evening rest buffer before onward travel."
+            elif recovery_places:
+                chosen_place = recovery_places.pop(0)
+                p_log = get_destination_logistics(chosen_place) or {}
+                day_title = f"Local Sightseeing — {chosen_place}"
+                day_base = "Katra Base Town"
+                day_exertion = "Light"
+                day_tt = p_log.get("travel_time_desc", "Local road transit")
+                day_cost = p_log.get("estimated_transport_cost", "Local taxi (Estimated)")
+                day_acts = [
+                    f"09:30 AM – 11:00 AM: Transit to {chosen_place} ({day_tt})",
+                    f"11:00 AM – 02:30 PM: Explore {chosen_place}",
+                    "03:30 PM – 06:00 PM: Return to Katra town and local market exploration",
+                    "07:30 PM – 09:30 PM: Dinner and rest",
+                ]
+                day_note = f"Relaxed visit to {chosen_place} with low exertion."
+            else:
+                day_title = f"Day {d}: Leisure & Optional Regional Sightseeing"
+                day_base = "Katra / Local Base"
+                day_exertion = "Light"
+                day_acts = [
+                    "09:00 AM – 12:00 PM: Relaxed morning at base hotel or local town exploration",
+                    "12:30 PM – 04:00 PM: Free afternoon (optional excursions can be arranged locally)",
+                    "05:00 PM – 07:30 PM: Evening stroll and shopping at local Katra/Jammu markets",
+                    "08:00 PM – 09:30 PM: Dinner and rest",
+                ]
+                day_tt = "Local transit"
+                day_cost = "Local expenses only"
+                day_note = "Open leisure day allowing pilgrims to rest or book optional local sightseeing based on on-ground energy."
+
             days.append({
                 "day_number": d,
-                "date": day_str,
-                "title": "Excursion & Leisure",
-                "activities": [
-                    f"Day trip to {p_sug}",
-                    "Relaxed evening in Katra",
-                ],
+                "date": day_date_str,
+                "title": day_title,
+                "base_location": day_base,
+                "exertion_level": day_exertion,
+                "activities": day_acts,
+                "rest_buffers": "2 hrs evening relaxation buffer",
+                "travel_time_est": day_tt,
+                "travel_cost_est": day_cost,
+                "booking_notes": "Check road and weather advisories locally for mountain routes.",
+                "practicality_note": day_note,
             })
 
-    # Final Day (Day duration): Check-out & Return Journey
+    # -------------------------------------------------------------------------
+    # FINAL DAY: Check-out & Return Journey
+    # -------------------------------------------------------------------------
     if duration >= 3:
-        dep_date = start_dt + timedelta(days=duration - 1)
-        dep_activities = []
-        if hotel:
-            dep_activities.append(f"Check out of {hotel['name']}")
-        else:
-            dep_activities.append("Check out from hotel")
+        dep_dt = start_dt + timedelta(days=duration - 1)
+        dep_date_str = _fmt_date(dep_dt.strftime("%Y-%m-%d"))
+
         if mode == "flight":
-            dep_activities.append("Taxi back to Jammu (if departing by flight)")
-        dep_activities.append(f"Return journey to {origin}")
+            dep_summary = f"Taxi transfer to Jammu Airport and return flight to {origin}"
+            dep_time_est = "~1.5–2 hrs road transfer to Jammu Airport"
+            dep_cost_est = "₹1,300–2,000 private sedan (Estimated)"
+        else:
+            dep_summary = f"Transfer to Katra Railway Station and return journey to {origin} by Train"
+            dep_time_est = "15–20 mins to Katra railway station"
+            dep_cost_est = "Included in train ticket; local auto ₹100–150"
 
         days.append({
             "day_number": duration,
-            "date": _fmt_date(dep_date.strftime("%Y-%m-%d")),
+            "date": dep_date_str,
             "title": "Check-out & Return Journey",
-            "activities": dep_activities,
+            "base_location": f"Katra ➔ {origin}",
+            "exertion_level": "Light",
+            "activities": [
+                f"08:30 AM – 10:30 AM: Leisure breakfast and hotel check-out at {hotel_name}",
+                "11:00 AM – 01:00 PM: Last-minute Katra bazaar shopping (dry fruits, Mata prasad, devotional mementos)",
+                f"01:30 PM – Onward: {dep_summary}",
+            ],
+            "rest_buffers": "2-hour departure transit buffer before scheduled boarding",
+            "travel_time_est": dep_time_est,
+            "travel_cost_est": dep_cost_est,
+            "booking_notes": "Keep return train/flight tickets and valid government photo IDs handy for station/airport entry.",
+            "practicality_note": "Structured with generous 2-hour departure buffer to ensure relaxed hotel checkout and on-time terminal check-in.",
         })
 
     return days
@@ -192,161 +885,60 @@ def format_itinerary_text(days):
     """Plain-text version, useful for chat display or a downloadable summary."""
     lines = []
     for d in days:
-        lines.append(f"Day {d['day_number']} — {d['date']}: {d['title']}")
+        ex = d.get("exertion_level", "Moderate")
+        base = d.get("base_location", "Katra")
+        lines.append(f"Day {d['day_number']} — {d['date']}: {d['title']} [Base: {base} | Exertion: {ex}]")
+        if d.get("practicality_note"):
+            lines.append(f"  💡 {d['practicality_note']}")
         for a in d["activities"]:
             lines.append(f"  • {a}")
-    return "\n".join(lines)
+        lines.append("")
+    return "\n".join(lines).strip()
 
 
 def generate_default_itinerary(request):
-    """Generates a structured day-wise itinerary list of dicts based on request parameters."""
+    """Generates a structured day-wise itinerary list matching request parameters."""
     req = request or {}
     duration = req.get("duration_days", 4) or 4
     origin = req.get("origin") or "Delhi"
-    mode = (req.get("mode") or "train").title()
+    mode = (req.get("mode") or "train").lower()
     cat = req.get("category") or "Normal Darshan"
     start_date_str = req.get("start_date") or datetime.now().strftime("%Y-%m-%d")
 
-    try:
-        st_date = datetime.strptime(start_date_str, "%Y-%m-%d")
-    except Exception:
-        st_date = datetime.now()
+    dummy_option = {
+        "transport": {
+            "origin": origin,
+            "destination": "Katra",
+            "mode": mode,
+            "operator": "Northern Railways" if mode == "train" else "Air Carrier",
+            "transport_no": "12425" if mode == "train" else "6E-204",
+            "departure_time": "06:00 AM",
+            "travel_date": start_date_str,
+            "price": 850 if mode == "train" else 4200,
+        },
+        "slot": {
+            "category": cat,
+            "slot_time": "12:00 PM",
+            "slot_date": start_date_str,
+            "price": 0 if "normal" in cat.lower() else 500,
+        },
+    }
 
-    days = []
-
-    # Day 1: Arrival
-    days.append({
-        "day_number": 1,
-        "date": _fmt_date(st_date.strftime("%Y-%m-%d")),
-        "title": "Arrival & Check-in",
-        "activities": [
-            f"Travel from {origin} to Katra by {mode}",
-            "Arrival & check-in at Katra hotel",
-            "Obtain mandatory Yatra Slip / Parchi at Katra counter",
-        ],
-    })
-
-    # Day 2: Darshan
-    days.append({
-        "day_number": 2,
-        "date": _fmt_date((st_date + timedelta(days=1)).strftime("%Y-%m-%d")),
-        "title": "Pilgrimage & Darshan",
-        "activities": [
-            "Trek from Katra to Bhawan via Tarakote Marg / Traditional Route",
-            f"{cat} at Bhawan",
-            "Visit Bhairavnath Temple after darshan",
-        ],
-    })
-
-    # Day 3 to Day N-1: Sightseeing / Rest
-    suggested_places = ["Patnitop", "Baba Dhansar", "Ardhkuwari Cave", "Mansar Lake", "Shiv Khori", "Nau Devi Cave Temple"]
-    place_idx = 0
-
-    for d in range(3, duration):
-        day_date = st_date + timedelta(days=d - 1)
-        if d == 3:
-            p1 = suggested_places[place_idx % len(suggested_places)]
-            days.append({
-                "day_number": d,
-                "date": _fmt_date(day_date.strftime("%Y-%m-%d")),
-                "title": "Sightseeing & Exploration",
-                "activities": [f"Visit {p1}", "Local Katra market exploration & souvenirs"],
-            })
-            place_idx += 1
-        elif d == 4:
-            p2 = suggested_places[place_idx % len(suggested_places)]
-            days.append({
-                "day_number": d,
-                "date": _fmt_date(day_date.strftime("%Y-%m-%d")),
-                "title": "Rest & Relaxation",
-                "activities": [f"Visit {p2}", "Rest and local dining in Katra town"],
-            })
-            place_idx += 1
-        else:
-            p_next = suggested_places[place_idx % len(suggested_places)]
-            days.append({
-                "day_number": d,
-                "date": _fmt_date(day_date.strftime("%Y-%m-%d")),
-                "title": "Excursion & Leisure",
-                "activities": [f"Day trip to {p_next}", "Relaxed evening in Katra"],
-            })
-            place_idx += 1
-
-    # Final Day: Departure (only if duration >= 3, else Day 2 is final if duration=2)
-    if duration >= 3:
-        dep_date = st_date + timedelta(days=duration - 1)
-        days.append({
-            "day_number": duration,
-            "date": _fmt_date(dep_date.strftime("%Y-%m-%d")),
-            "title": "Check-out & Return Journey",
-            "activities": ["Check out from hotel", f"Return journey to {origin}"],
-        })
-
-    return days
+    return build_itinerary(
+        dummy_option,
+        hotel=None,
+        hotel_nights=max(1, int(duration) - 1),
+        sightseeing_places=req.get("sightseeing_places", []),
+        request=req,
+    )
 
 
 def sync_itinerary_duration(itinerary, new_duration, request=None):
-    """Synchronizes itinerary length when Phase D modifies duration_days."""
-    if not itinerary:
-        return generate_default_itinerary(request or {"duration_days": new_duration})
+    """Synchronizes itinerary length when trip duration changes, strictly enforcing N days."""
+    req = dict(request or {})
+    req["duration_days"] = new_duration
+    return generate_default_itinerary(req)
 
-    curr_len = len(itinerary)
-    if curr_len == new_duration:
-        return itinerary
-
-    new_itin = copy.deepcopy(itinerary)
-    req = request or {}
-    origin = req.get("origin") or "Delhi"
-
-    try:
-        st_date = datetime.strptime(req.get("start_date", datetime.now().strftime("%Y-%m-%d")), "%Y-%m-%d")
-    except Exception:
-        st_date = datetime.now()
-
-    if curr_len < new_duration:
-        # Extend itinerary
-        last_day_num = curr_len
-        # Move previous final departure day if it was departure
-        if new_itin[-1]["title"] == "Check-out & Return Journey":
-            departure_day = new_itin.pop()
-        else:
-            departure_day = None
-
-        suggested = ["Patnitop", "Mansar Lake", "Baba Dhansar", "Shiv Khori", "Nau Devi Cave Temple"]
-        for d in range(len(new_itin) + 1, new_duration):
-            day_dt = st_date + timedelta(days=d - 1)
-            place = suggested[(d - 3) % len(suggested)]
-            new_itin.append({
-                "day_number": d,
-                "date": _fmt_date(day_dt.strftime("%Y-%m-%d")),
-                "title": "Sightseeing & Exploration",
-                "activities": [f"Visit {place}", "Relaxed local activities"],
-            })
-
-        # Add departure day at end
-        dep_dt = st_date + timedelta(days=new_duration - 1)
-        new_itin.append({
-            "day_number": new_duration,
-            "date": _fmt_date(dep_dt.strftime("%Y-%m-%d")),
-            "title": "Check-out & Return Journey",
-            "activities": ["Check out from hotel", f"Return journey to {origin}"],
-        })
-    else:
-        # Trim itinerary
-        new_itin = new_itin[:new_duration]
-        dep_dt = st_date + timedelta(days=new_duration - 1)
-        new_itin[-1] = {
-            "day_number": new_duration,
-            "date": _fmt_date(dep_dt.strftime("%Y-%m-%d")),
-            "title": "Check-out & Return Journey",
-            "activities": ["Check out from hotel", f"Return journey to {origin}"],
-        }
-
-    # Re-index day_number
-    for idx, d in enumerate(new_itin, start=1):
-        d["day_number"] = idx
-
-    return new_itin
 
 
 def match_place_name(text):

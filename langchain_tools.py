@@ -70,6 +70,20 @@ def yatra_information_search(query: str) -> str:
     output = []
 
     for item in results:
+        content_val = item.get("content")
+        if isinstance(content_val, dict):
+            formatted_info = "\n".join(f"• {k.replace('_', ' ').title()}: {v}" for k, v in content_val.items())
+        elif isinstance(content_val, list):
+            formatted_info = "\n".join(f"• {v}" for v in content_val)
+        elif content_val:
+            formatted_info = str(content_val)
+        else:
+            extra_lines = []
+            for k, v in item.items():
+                if k not in ("topic", "title", "category", "_id"):
+                    extra_lines.append(f"• {k.replace('_', ' ').title()}: {v}")
+            formatted_info = "\n".join(extra_lines) if extra_lines else "N/A"
+
         output.append(
             f"""
 Topic: {item.get('topic', 'N/A')}
@@ -77,7 +91,7 @@ Title: {item.get('title', 'N/A')}
 Category: {item.get('category', 'N/A')}
 
 Information:
-{item.get('content', 'N/A')}
+{formatted_info}
 """.strip()
         )
 
@@ -90,9 +104,18 @@ MONGODB_TOOLS = [
     yatra_information_search,
 ]
 
+# Expose RPA availability tool for LangChain agent orchestration
+from agents.tools import check_yatra_availability, check_yatra_availability_tool
+
+ALL_LANGCHAIN_TOOLS = [
+    tourism_search,
+    yatra_information_search,
+    check_yatra_availability,
+]
+
 
 if __name__ == "__main__":
     print("Available LangChain MongoDB tools:")
 
-    for tool in MONGODB_TOOLS:
-        print(f"- {tool.name}")
+    for tool in ALL_LANGCHAIN_TOOLS:
+        print(f"- {tool.name}")

@@ -1,111 +1,413 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;1,700&display=swap');
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  --bg-main: #FDFBF7;
+  --bg-subtle: #F8F4EC;
+  --card-bg: #FFFFFF;
+  --burgundy-dark: #3D0810;
+  --burgundy: #58111A;
+  --burgundy-light: #7A1926;
+  --gold-primary: #B8860B;
+  --gold-accent: #C5A059;
+  --gold-subtle: #F5ECDA;
+  --gold-border: #E5D2AD;
+  --text-dark: #2A2020;
+  --text-muted: #6B5C5C;
+  --border-subtle: #EBE1D0;
+  --shadow-sm: 0 2px 8px rgba(88, 17, 26, 0.04);
+  --shadow-md: 0 6px 20px rgba(88, 17, 26, 0.08);
+  --shadow-lg: 0 12px 36px rgba(88, 17, 26, 0.12);
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+  --font-serif: 'Cinzel', serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--bg-main);
+  color: var(--text-dark);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
+  min-height: 100vh;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+/* Headings */
+h1, h2, h3, h4, .brand-font {
+  font-family: var(--font-serif);
+  color: var(--burgundy-dark);
+  letter-spacing: 0.02em;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+/* Layout container */
+.container {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
+/* Buttons */
+.btn {
   display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.88rem;
+  padding: 0.65rem 1.4rem;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid transparent;
+  text-decoration: none;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
 }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--burgundy) 0%, var(--burgundy-dark) 100%);
+  color: #FFFFFF;
+  border-color: var(--gold-primary);
+  box-shadow: 0 4px 14px rgba(88, 17, 26, 0.2);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--burgundy-light) 0%, var(--burgundy) 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(88, 17, 26, 0.25);
+}
+
+.btn-gold {
+  background: linear-gradient(135deg, #C5A059 0%, #B8860B 100%);
+  color: #2D050B;
+  font-weight: 800;
+  border-color: #E5D2AD;
+}
+
+.btn-gold:hover:not(:disabled) {
+  background: linear-gradient(135deg, #D4AF37 0%, #C5A059 100%);
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  background: #FFFFFF;
+  color: var(--burgundy);
+  border-color: var(--gold-border);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: var(--gold-subtle);
+  border-color: var(--gold-primary);
+}
+
+.btn-secondary {
+  background: var(--gold-subtle);
+  color: var(--burgundy);
+  border-color: var(--gold-border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #EEDDBB;
+}
+
+/* Form Inputs */
+input, select, textarea {
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  color: var(--text-dark);
+  background: #FFFFFF;
+  border: 1.5px solid var(--gold-border);
+  border-radius: 10px;
+  padding: 0.65rem 0.9rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--gold-primary);
+  box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.15);
+}
+
+/* Badges & Pills */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.pill-gold {
+  background: var(--gold-subtle);
+  color: var(--burgundy);
+  border: 1px solid var(--gold-border);
+}
+
+.pill-burgundy {
+  background: var(--burgundy);
+  color: #FFFFFF;
+  border: 1px solid var(--gold-primary);
+}
+
+.pill-success {
+  background: #EAF7EE;
+  color: #155724;
+  border: 1px solid #C3E6CB;
+}
+
+/* Card surfaces */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--gold-border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--gold-primary);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-subtle);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gold-accent);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-primary);
+}
+
+/* ========================================================================== */
+/* PRINT UTILITIES & DEDICATED PRINT STYLES                                   */
+/* ========================================================================== */
+
+/* Print utility class */
+.no-print {
+  /* Default for screen */
+}
+
+@media print {
+  /* Standard A4 Portrait Page Configuration */
+  @page {
+    size: A4 portrait;
+    margin: 10mm 15mm;
+  }
+
+  /* 1. Hide application navigation, footers, interactive buttons, and screen chrome */
+  header,
+  footer,
+  nav,
+  .navbar,
+  .no-print,
+  [data-testid="mode-switcher-bar"],
+  .stepper-container,
+  button {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 2. Reset page, document, and container backgrounds for pristine paper printing */
+  html,
+  body,
+  #root,
+  .container,
+  .page-container {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #111111 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    min-height: auto !important;
+  }
+
+  /* 3. Pass container adjustments */
+  .pilgrim-pass-container {
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* 4. Banner: clean high-contrast ink-friendly bordered block */
+  .pilgrim-pass-banner {
+    background: #ffffff !important;
+    background-image: none !important;
+    border: 2px solid #222222 !important;
+    border-radius: 8px !important;
+    padding: 1.25rem 1.5rem !important;
+    margin-bottom: 1rem !important;
+    color: #111111 !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .pilgrim-pass-banner * {
+    color: #111111 !important;
+    text-shadow: none !important;
+  }
+
+  .pilgrim-pass-title {
+    color: #111111 !important;
+    font-size: 1.45rem !important;
+    letter-spacing: 0.03em !important;
+  }
+
+  .pilgrim-pass-subtitle {
+    color: #333333 !important;
+    font-size: 0.85rem !important;
+    margin-top: 4px !important;
+  }
+
+  /* 5. Reference ID Box */
+  .pilgrim-pass-ref-box {
+    background: #f8f8f8 !important;
+    border: 2px dashed #333333 !important;
+    border-radius: 6px !important;
+    padding: 8px 20px !important;
+    margin-top: 0.85rem !important;
+    display: inline-block !important;
+  }
+
+  .pilgrim-pass-ref-label {
+    color: #444444 !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.06em !important;
+  }
+
+  .pilgrim-pass-ref-id {
+    color: #111111 !important;
+    font-size: 1.5rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.06em !important;
+  }
+
+  /* 6. Divine Blessing Quote */
+  .pilgrim-pass-blessing {
+    color: #333333 !important;
+    font-style: italic !important;
+    font-size: 0.85rem !important;
+    margin-top: 0.75rem !important;
+    line-height: 1.4 !important;
+  }
+
+  /* 7. Disclaimer / Simulation Notice */
+  .pilgrim-pass-disclaimer {
+    background: #fbfbfb !important;
+    border: 1px solid #777777 !important;
+    border-radius: 6px !important;
+    padding: 6px 12px !important;
+    margin-top: 0.75rem !important;
+    font-size: 0.72rem !important;
+    color: #333333 !important;
+    line-height: 1.4 !important;
+  }
+
+  .pilgrim-pass-disclaimer b {
+    color: #111111 !important;
+  }
+
+  /* 8. Summary Pass Card */
+  .pilgrim-pass-card {
+    background: #ffffff !important;
+    border: 1.5px solid #222222 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    padding: 1.25rem 1.5rem !important;
+    margin-bottom: 1rem !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .pilgrim-pass-section-title {
+    color: #111111 !important;
+    border-bottom: 1.5px solid #222222 !important;
+    font-size: 1.05rem !important;
+    font-weight: 800 !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .pilgrim-pass-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  .pilgrim-pass-label {
+    color: #555555 !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+  }
+
+  .pilgrim-pass-value {
+    color: #111111 !important;
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+  }
+
+  .pilgrim-pass-subtext {
+    color: #444444 !important;
+    font-size: 0.78rem !important;
+  }
+
+  /* 9. RFID Counter notice */
+  .pilgrim-pass-rfid-notice {
+    background: #f8f8f8 !important;
+    border: 1px solid #444444 !important;
+    border-radius: 6px !important;
+    padding: 8px 12px !important;
+    margin-top: 1rem !important;
+    font-size: 0.8rem !important;
+    color: #111111 !important;
+    line-height: 1.4 !important;
+  }
+
+  .pilgrim-pass-rfid-notice span {
+    font-weight: 800 !important;
+    color: #111111 !important;
+  }
+}
+

@@ -6,3 +6,7 @@ data/bookings.csv
 .streamlit/secrets.toml
 .venv/
 venv/
+*.db
+data/*.db
+scratch/
+node_modules/

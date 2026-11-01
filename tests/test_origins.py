@@ -1,6 +1,6 @@
-"""
+r"""
 test_origins.py - Verification script for origin extraction & transport fallback strategy.
-Run with: ..\venv\Scripts\python.exe test_origins.py
+Run with: ../venv/Scripts/python.exe test_origins.py
 """
 import sys
 import io

@@ -1,244 +1,452 @@
-# Vaishno Devi Yatra Booking Agent (Prototype)
+# Maa Vaishno Devi Yatra Booking Agent (Tourism AI with RPA)
 
-A conversational, multi-agent AI prototype that plans and books Vaishno Devi
-yatra slots + travel (flight, train, or bus) through a ChatGPT-style chat
-interface. Built with Streamlit.
+An intelligent, multi-agent AI travel companion and automated booking prototype for the sacred **Maa Vaishno Devi Pilgrimage (Katra, Jammu & Kashmir)**. The system combines natural language understanding (NLU), multi-modal transit optimization, deterministic itinerary scheduling, verified regional heritage knowledge, and Playwright-based Robotic Process Automation (RPA) guarded by an ethical Human-in-the-Loop authorization gate.
 
-> **Important:** This is a prototype for demo purposes. Yatra darshan
-> **prices** are real, researched figures (see Data Sources below); flight,
-> train, bus, and hotel prices are realistic but synthetic. **Seat/slot/room
-> availability for all of these is simulated** — no public dataset or API
-> anywhere publishes real-time yatra slot, airline, rail, bus, or hotel
-> inventory. **Payment is also simulated**. There is **no login/sign-up** —
-> each browser session gets a temporary guest identity purely so booking
-> history has something to group by; nothing personal is required or stored
-> long-term.
+---
 
-## Architecture: multi-agent design
+## 1. Project Overview & Problem Statement
 
-Rather than one monolithic script, the system is split into agents with
-distinct responsibilities, orchestrated by a coordinator:
+### Pilgrimage Challenge
+The pilgrimage to the holy cave shrine of Shri Mata Vaishno Devi Ji in the Trikuta Mountains of Katra involves unique logistical, physical, and timing demands:
+- **High-Exertion Mountain Trek:** The 26 km round-trip trek between Katra base, Ardhkuwari, and Bhawan reaches an altitude of ~5,200 ft, demanding dedicated full-day focus and realistic post-trek recovery.
+- **Strict Yatra Slots & Formalities:** Mandatory RFID yatra tracking cards, dedicated darshan time slots, and early helicopter reporting deadlines must align with incoming flights, trains, and buses.
+- **Regional Feasibility & Travel Times:** Pilgrims frequently attempt to combine distant regional destinations (e.g., Patnitop, Shiv Khori, Sanasar) into short 2- or 3-day trips without accounting for mountainous transit times (85+ km on hill roads) or physical exhaustion.
+- **Unverified & Misleading Plans:** Generic LLMs often hallucinate direct trains to Katra from non-existent origins, fabricate fictitious return fares, or schedule grueling excursions on the day of the holy trek.
 
-```
-agents/
-├── coordinator.py          # orchestrates every other agent for the conversation
-├── conversation_agent.py   # multilingual understanding + devotional reply phrasing
-├── itinerary_agent.py      # builds the day-wise pilgrimage itinerary
-└── content_agent.py        # historical background + video links per place
-```
+### Architectural Solution
+The Yatra Booking Agent resolves these challenges through a **hybrid deterministic and conversational architecture**:
+1. **Choice-Driven Planning:** Pilgrims can plan either through a structured, accessible guided intake form or naturally via a conversational AI companion.
+2. **Deterministic Feasibility Engine:** Evaluates user-selected destinations against ground-truth regional distances, terrain travel times, trip duration, and trek-day physical recovery constraints. Distant excursions on short trips are never silently discarded; they are flagged with clear explanations and duration recommendations.
+3. **Isolated Trek & Recovery Scheduling:** Day 2 is strictly reserved as an exclusive holy trek day. Immediate post-trek days on longer journeys are protected for gentle Katra leisure.
+4. **Transparent Cost Segregation:** Direct verified costs (transit tickets, shrine slots, certified hotels) are strictly separated from discretionary estimates (local taxis, meals) and excluded expenses (pony/palki charges, offerings).
+5. **Server-Side Authorization & Idempotency:** Client-side flags cannot authorize bookings; bookings require server-recorded human consent tied to an exact plan version. Any material change revokes authorization and prevents double bookings.
+6. **Simulated RPA Sandbox:** Automates form-filling and verification via headless Playwright automation in an isolated mock environment without touching live financial or government portals.
 
-Transport, darshan, and hotel search/ranking logic lives in the existing,
-independently-tested `agent.py` (real-arrival-time-aware ranking - see
-"Timing safety" below) and `db.py` at the project root; the coordinator
-calls into those rather than duplicating that logic inside the agents
-package. `app.py` only ever talks to `coordinator` - it doesn't call any
-other agent directly, keeping the orchestration logic in one place.
+---
 
-## What's new in this version
+## 2. System Architecture & Request Flow
 
-- **Chat-first interface, no forms** — the old dropdown/date-picker search
-  form is gone. You just type your trip in plain language, in whatever
-  language you're comfortable with, and the agent takes it from there.
-- **Multilingual conversational AI** — if an `ANTHROPIC_API_KEY` is
-  configured (see below), Claude understands and can respond appropriately
-  regardless of the language you write in (Hindi, Hinglish, English, etc.),
-  with a respectful devotional tone ("🙏 Jai Mata Di") woven in naturally.
-  Without a key, the app still works fully via rule-based English parsing —
-  this is disclosed in the UI, not hidden.
-- **No sign-up required** — removed the login/account system entirely.
-  Each session gets a lightweight guest ID automatically.
-- **Day-wise itinerary (new Step 5)** — once you've picked transport,
-  darshan, an optional hotel, and optional sightseeing, the ItineraryAgent
-  assembles a real day-by-day plan (arrival, rest days if needed, darshan
-  day, sightseeing day, departure) before you pay.
-- **Historical background + video links for every place** — both in the
-  sightseeing step and the Explore Katra tab, each place now shows real,
-  researched historical/mythological background and a "watch videos" link.
-  Video links are constructed YouTube *search* URLs, not hardcoded video
-  IDs, so they always resolve to real, current results rather than risking
-  a broken or deleted specific video.
-- **Multi-modal travel** — flights, trains, *and* buses, ranked together.
-- **Hotel stay in Katra** — Budget/Mid-Range/Premium, real researched price
-  tiers, room availability decrements per booking.
-- **Jammu → Katra taxi guidance** — real researched fare ranges, shown
-  both mid-booking and in the Explore Katra tab.
-- **Timing safety** — transport + darshan combinations are only ever shown
-  if they're actually reachable in time (real arrival time, a Jammu-Katra
-  taxi buffer for flights, and a realistic trek/heli-and-queue buffer for
-  the darshan category) - see `agent.py`'s `DARSHAN_PREP_BUFFER_HOURS`.
-- **Mock payment gateway** — a card/UPI checkout screen before confirmation.
-  No real transaction ever occurs.
-- **A real 6-step flow** — *Tell us your trip (chat) → Review options → Add
-  a stay → Sightseeing → Itinerary → Pay & confirm*.
-
-## Data Sources
-
-CSV datasets under `data/*_dataset.csv` are the actual data source — not a
-live API, not random on-the-fly generation.
-
-| Field | Status | Source |
-|---|---|---|
-| Yatra Registration (Normal Darshan) price | **Real** | Free, per Shrine Board (maavaishnodevi.org) |
-| Helicopter Darshan price (₹4,640 round-trip) | **Real, verified** | Official Shrine Board rate, Katra–Sanjichhat route, revised Oct 2025 |
-| VIP/Special Darshan price (~₹500) | **Commonly cited, not officially confirmed** | Consistent across multiple pilgrimage sites |
-| Katra has its own railway station (SVDK) with direct trains from Delhi, Mumbai, Kolkata, Chennai, Ahmedabad | **Real** | Station opened 2014; widely documented. Bangalore has no confirmed direct service, so it's deliberately left out of the train dataset rather than invented. |
-| Direct bus services to Katra | **Real, but Delhi-only in this dataset** | Regularly documented from Delhi; other cities' bus links weren't confirmed, so they're left out rather than guessed |
-| Flight/train/bus *prices, schedules* | Realistic structure, synthetic exact figures | Flight fares calibrated against real Kaggle India flight-price datasets; train fares follow real IRCTC Sleeper/3AC/2AC tiering; none of this is live pricing |
-| Jammu ↔ Katra taxi fares (₹1,300–3,800 by vehicle type) | **Real, researched** | Cross-checked across multiple cab-booking sites (Jagat Travels, CabBazar, Savaari, EaseMyTrip Cabs); ~44-55 km, ~1-1.5 hrs |
-| Katra hotel price tiers (Budget ₹600-1,500 / Mid-Range ₹1,800-4,000 / Premium ₹5,000-12,000 per night) | **Real, researched price ranges; property names are generic/fictional** | Cross-checked across multiple hotel-booking sites; no real per-hotel room-inventory data exists publicly, so specific property names and room availability are simulated |
-| Historical/mythological background for trek-route sites (Bhairavnath, Ardhkuwari, Charan Paduka) and Jammu heritage sites (Raghunath Temple, Bahu Fort, Amar Mahal) | **Real, cross-checked across multiple independent sources** | Legend details, construction dates, and founders verified across multiple pilgrimage-history and heritage sources |
-| Historical background for Baba Dhansar, Jhajjar Kotli, Patnitop | **Honestly labeled as not having a widely documented origin story**, rather than an invented legend | — |
-| Video links per place | **Real, but a search page, not a specific video** | Constructed YouTube search URLs, so they always resolve to current real results instead of a hardcoded video ID that could later break |
-| All seat/slot/room availability | **Simulated** | Not public anywhere — gated behind each system's own booking backend |
-| Explore Katra tourist info + local-travel notes | **Real places, general sourcing; travel cost notes are estimates** | Compiled from general pilgrimage-tourism sources; distances and local taxi/auto fares are approximate |
-| Session identity | **No accounts** | Each browser session gets a temporary auto-generated guest ID; nothing personal is collected |
-
-A real production version of this agent would need an official
-data-sharing agreement with the Shrine Board, IRCTC, an airline/GDS
-partner, state road transport corporations, and individual hotels for
-live inventory.
-
-## How the data layer works
-
-- `build_dataset.py` — generates the master dataset CSVs: yatra slots,
-  flights, trains, buses, and seed user accounts. Uses `day_offset`
-  instead of fixed dates.
-- `db.py` — on first app run, copies the dataset CSVs into "live" working
-  copies with actual calendar dates computed in, plus `data/bookings.csv`.
-  Bookings are **transport-mode-generic**: one booking row stores whichever
-  mode (flight/train/bus) was chosen directly, rather than a foreign key
-  into one specific mode's table.
-- The dataset CSVs are committed to the repo; live/mutable files and
-  bookings are gitignored (per-install state, not the dataset itself).
-
-## Persistent storage (signups & bookings survive redeploys)
-
-Optional, via a free Airtable base — see `airtable_store.py`. Setup is
-unchanged from before **except the `bookings` table's columns**, which
-now need to match the new transport-mode-generic, hotel-inclusive schema.
-If you already set up Airtable, update your `bookings` table's fields to
-exactly:
+### Dual-Version System Architecture
+The repository hosts two decoupled client implementations sharing a unified multi-agent and data intelligence backend:
+1. **Version 1 (Streamlit Monolith — `app.py`):** Self-contained multi-tab prototype for quick exploratory validation and testing.
+2. **Version 2 (React 19 + FastAPI Decoupled Stack):** Modern production-ready web application consisting of a React (Vite) frontend communicating with an asynchronous FastAPI REST backend.
 
 ```
-booking_id, user_name, pax_count, yatra_slot_id, category, slot_date,
-slot_time, transport_mode, transport_no, transport_operator, origin,
-destination, transport_date, departure_time, transport_price,
-yatra_price, hotel_id, hotel_name, hotel_category, hotel_price_per_night,
-hotel_nights, hotel_total, total_price, status, created_at
+                          ┌────────────────────────────────────────────────────────┐
+                          │                   CLIENT INTERFACES                    │
+                          └────────────────────────────────────────────────────────┘
+                                      │                                │
+                     Version 1        │                                │ Version 2
+               ┌──────────────────────┴──────┐          ┌──────────────┴─────────────────┐
+               │    Streamlit Application    │          │      React + Vite Frontend     │
+               │          (app.py)           │          │   (frontend/src/ - Port 5173)  │
+               └──────────────┬──────────────┘          └────────────────┬───────────────┘
+                              │                                          │ HTTP Axios
+                              │ Direct Python                            │ (frontend/src/services/api.js)
+                              │ Function Calls                           ▼
+                              │                         ┌────────────────────────────────┐
+                              │                         │        FastAPI Backend         │
+                              │                         │       (backend/main.py)        │
+                              │                         │ Port 8000: /api/chat, /yatra,  │
+                              │                         │            /weather, /tourism  │
+                              │                         └────────────────┬───────────────┘
+                              │                                          │
+                              ▼                                          ▼
+  ┌───────────────────────────────────────────────────────────────────────────────────────────────┐
+  │                                MULTI-AGENT ORCHESTRATION LAYER                                │
+  │                                  (agents/coordinator.py)                                      │
+  └───────────────────────────────┬───────────────────────────────────────────────────────────────┘
+                                  │
+    ┌─────────────────────────────┼──────────────────────────────┬──────────────────────────────┐
+    ▼                             ▼                              ▼                              ▼
+┌────────────────────────┐  ┌────────────────────────┐  ┌────────────────────────┐  ┌────────────────────────┐
+│   ConversationAgent    │  │     ItineraryAgent     │  │  RecommendationAgent  │  │   Playwright RPA       │
+│(agents/conversation_   │  │ (agents/itinerary_     │  │ (agents/recommendation │  │   (agents/rpa_agent.py)│
+│       agent.py)        │  │       agent.py)        │  │       _agent.py)       │  │                        │
+│ - Multilingual NLU     │  │ - Feasibility engine   │  │ - Persona matching     │  │ - Browser form auto.   │
+│ - Intent classification│  │ - Trek-day isolation   │  │ - Family/budget styles │  │ - Mock booking sandbox │
+│ - Devotional phrasing  │  │ - Recovery scheduling  │  │ - Pace evaluation      │  │ - Audit screenshots   │
+└────────────────────────┘  └────────────────────────┘  └────────────────────────┘  └────────────────────────┘
+            │                                                        ▲
+            ▼                                                        │
+┌────────────────────────────────────────────────────────────────────┴───────────────────────────────────┐
+│                                   SHARED CORE & DATA ENGINES                                           │
+├────────────────────────────────┬───────────────────────────────────┬───────────────────────────────────┤
+│    orchestrator.py & session   │       budget_engine.py            │     explore_data.py & yatra_info  │
+│ - Multi-turn conversational flow│ - Decimal verified cost math      │ - 29 J&K destinations & history   │
+│ - Replanning & version control │ - Room & night allocation logic   │ - Aarti timings, RFID, helplines  │
+│ - SQLite ACID session store    │ - Budget overrun evaluation       │ - Video links, entry fees, taxi   │
+└────────────────────────────────┴───────────────────────────────────┴───────────────────────────────────┘
+                                                 │
+                                                 ▼
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                              KNOWLEDGE RETRIEVAL & INTEGRATIONS                                        │
+├────────────────────────────────┬───────────────────────────────────┬───────────────────────────────────┤
+│    MongoDB Atlas + LangChain   │       Open-Meteo Weather          │        Airtable Fallback          │
+│(mongo_db.py, mongodb_agent.py, │          (weather.py)             │       (airtable_store.py)         │
+│ mongodb_tools.py, seed_mongo)  │ - Real-time forecast via API      │ - Optional cloud booking store    │
+│ - Groq ChatGroq LLM fallback   │ - Seasonal monthly Katra averages │ - Activated when secrets present  │
+└────────────────────────────────┴───────────────────────────────────┴───────────────────────────────────┘
 ```
 
-(All "Single line text" is fine.) There's no `users` table anymore, since
-login/sign-up has been removed. If you haven't set up Airtable yet,
-everything still works fine against local CSV files — this section is
-optional.
+---
 
-## Conversational AI (multilingual mode)
+## 3. Supported User Workflows
 
-By default (no API key configured), the app understands trip requests via
-rule-based parsing — reliable, but English-only and keyword-based rather
-than truly understanding free-form phrasing.
+### 1. Planning Mode Choice Screen
+Pilgrims are greeted with a balanced choice screen offering two distinct methods:
+- **Plan with a Form:** A guided, structured 7-step wizard capturing departure city, dates, pilgrim count, transport mode, darshan slot, stay preferences, budget, and sightseeing.
+- **Chat with AI:** A conversational assistant allowing natural phrasing, follow-up queries, and on-the-fly adjustments.
+- **Seamless Mode Switching:** A prominent top switcher bar enables switching between Form and Chat at any point with zero loss of session ID, plan version, destination choices, or itinerary state.
 
-To enable full multilingual understanding (Hindi, Hinglish, English, or
-anything else a pilgrim writes in) and warmer, more natural devotional
-phrasing in replies, provide an Anthropic API key:
+### 2. Interactive Jammu & Kashmir Sightseeing Browser
+- **29 Grounded Destinations:** Katra local shrines, trek-route stops, regional hill stations (Patnitop, Sanasar), holy springs (Baba Dhansar), ancient cave shrines (Shiv Khori), and Kashmir excursions.
+- **Real-Time Search & Category Filters:** Instant search by destination or region, filter by category with live count badges, and expand cards for rich heritage notes and local access instructions.
+- **Interactive Selection Bar:** Sticky selection summary displaying selected places as quick-remove tags (`×`) and direct triggers to generate timelines or select *"Decide Later in Katra"*.
 
-- **Locally:** `export ANTHROPIC_API_KEY=sk-ant-...` before running
-  `streamlit run app.py`
-- **On Streamlit Cloud:** add it under App settings → Secrets:
-  ```toml
-  ANTHROPIC_API_KEY = "sk-ant-..."
+### 3. Realistic Itinerary & Feasibility Advisories
+- **Strict Trek Day Exclusivity:** Day 2 is reserved exclusively for the Katra-Bhawan-Bhairavnath yatra. Distant excursions (Patnitop, Sinthan Top) are barred from Day 2.
+- **Protected Recovery Time:** On 4+ day trips, Day 3 is safeguarded for gentle Katra leisure and recovery (`exertion_level: 'Light'`).
+- **Grounded Feasibility Advisories:**
+  - `feasible_places`: Listed with green verification badges and mapped to specific itinerary days.
+  - `infeasible_places`: Displayed with transparent explanations (e.g., *"Patnitop is 85 km from Katra (~3 hrs each way) and cannot fit within a 3-day trip without physical exhaustion"*) and duration recommendations (*"Consider extending your trip to 4+ days"*).
+  - Uncatalogued destinations (e.g., *"Eiffel Tower"*) are strictly rejected with an unverified catalogue advisory.
+
+### 4. Human-in-the-Loop Authorization & Simulated RPA Execution
+- **Two-Stage Confirmation Gate:** Review complete route, hotel, and sightseeing details alongside a clear distinction of verified vs. estimated costs.
+- **Server-Side Authorization:** Checking the authorization box calls `POST /api/yatra/authorize`, recording approval for the active `plan_version` in the SQLite session store.
+- **Automated Mock RPA Demo:** Pilgrims can trigger `POST /api/yatra/rpa` to run a headless Chromium browser instance that fills the simulated checkout form.
+- **Final Confirmation & Yatra Pass:** Issues an official confirmation reference (e.g., `VD26753AC0`), divine blessing message, and Katra RFID counter instructions.
+
+### 5. Optional Passwordless Email Authentication & Saved Trips (Week 9)
+- **Strict Guest-First Invariant:** Core functionality (chat, yatra rules, itinerary generation, mock RPA) remains 100% accessible to unauthenticated guests with zero blocking login walls.
+- **Password-Free Security:** Single-use 6-digit cryptographic OTPs via `secrets.choice`, salted SHA-256 storage (zero plain OTPs on disk), 5-minute expiry, and max 5 failed attempts.
+- **Selective Data Transition:** Active guests can sign in at any time to save in-memory itineraries and chat histories without losing active session context or restarting.
+- **Dual-Storage Resilience:** Primary cloud persistence via MongoDB Atlas (`users`, `saved_itineraries`, `saved_conversations`) with instant local SQLite ACID fallback (`data/auth_store.db`) when remote networks are offline.
+
+### 6. Ethical Boundary, Data Masking & Structured Logging Transparency (Week 10)
+- **Dual-Track Shrine Board Boundary:** Playwright browser automation is strictly confined to Track A (local simulated sandbox `yatra_mock_portal.html`). The live Shrine Board portal (`maavaishnodevi.org`) is protected against automated scraping, bot bookings, and credential harvesting; real bookings are completed manually by pilgrims via official deep-links.
+- **Centralized Data Masking (`utils/masking.py`):** Automatic scrubbing of sensitive inputs across backend logs and frontend UI. Emails are length-masked (`p*****i@example.com`), OTPs/tokens/passwords are replaced with `[REDACTED]`, and Groq API keys (`gsk_...`) are stripped from log streams.
+- **Structured Error Logging (`utils/logger.py`):** Emits standardized JSON/key-value logs with ISO timestamps, log levels (`DEBUG` through `CRITICAL`), component, operation, request correlation ID (`X-Correlation-ID`), error category, retry count, workflow state, HITL flags, and sanitized parameter dictionaries.
+- **Friendly Frontend Errors:** User interfaces suppress raw stack traces and database exceptions, presenting actionable guidance while capturing sanitized diagnostics internally.
+- **Test Coverage:** Dedicated 23-test suite in `tests/test_week10_ethical_compliance.py` verifying masking algorithms, structured logging, correlation ID tracing, and compliance invariants.
+
+---
+
+## 4. Technology Stack & Component Responsibilities
+
+| Technology | Version | Actual Architectural Role |
+| :--- | :--- | :--- |
+| **Python** | 3.12 | Backend core runtime, multi-agent orchestration, and deterministic engines |
+| **FastAPI** | 0.143+ | Asynchronous REST API layer providing typed JSON endpoints and CORS middleware |
+| **Uvicorn** | 0.53+ | ASGI web server running the FastAPI backend daemon |
+| **React** | 19.0+ | Modern component-based frontend with modular state management and responsive UI |
+| **Vite** | 8.3+ | Next-generation frontend bundler providing sub-second HMR and optimized production builds |
+| **Playwright** | 1.63+ | Headless Chromium automation executing simulated RPA booking workflows and E2E browser tests |
+| **SQLite (ACID)** | 3.x | Persistent server-side session store (`data/sessions.db`) with thread-safe process locks |
+| **Groq / ChatGroq**| 0.37+ | LLM inference client powering natural language conversation and slot extraction |
+| **LangChain** | 1.4+ | Agentic tool invocation framework binding MongoDB retrieval and coordinator tools |
+| **MongoDB Atlas** | 4.18+ | Cloud NoSQL document store housing tourist attractions and yatra knowledge |
+| **Open-Meteo API** | Live | Free external REST endpoint providing live Katra weather forecasts |
+| **Pandas** | 3.0+ | CSV database engine managing transport schedules, hotel inventories, and booking ledgers |
+
+---
+
+## 5. API Endpoint Specifications
+
+All endpoints are hosted on `http://127.0.0.1:8000`:
+
+### `POST /api/yatra/` (Travel & Darshan Search)
+Routes messages to the conversational orchestrator, resolving user requirements, selecting transport options, and initializing the server session.
+* **Request:**
+  ```json
+  {
+    "message": "2 people from Delhi to Katra on 2026-10-20 for 4 days with Normal Darshan",
+    "session_id": null
+  }
+  ```
+* **Response (Excerpt):**
+  ```json
+  {
+    "intent": "TRIP_PLANNING",
+    "session_id": "3974b81f-28c8-4036-9ec0-14cff2a83b46",
+    "plan_version": 1,
+    "status": "PLAN_READY",
+    "plan": {
+      "options": [
+        {
+          "transport": { "mode": "Train", "operator": "Vande Bharat Express", "price": 1660 },
+          "slot": { "category": "Normal Darshan", "price": 0 },
+          "total_price": 3320
+        }
+      ]
+    }
+  }
   ```
 
-Without a key, the app is fully functional — `app.py` shows a small caption
-disclosing which mode is active, rather than silently claiming multilingual
-support it isn't actually providing.
+### `POST /api/yatra/sightseeing` (Destination Catalogue)
+Returns all 29 grounded destinations with categories, regional proximity, entry fees, and heritage details.
+* **Request:** `{"category": null}`
+* **Response:** `{"status": "success", "count": 29, "places": [...]}`
 
-## Payment
+### `POST /api/yatra/itinerary` (Deterministic Timeline Generator)
+Generates day-by-day activities and evaluates sightseeing feasibility.
+* **Request:**
+  ```json
+  {
+    "option": { "transport": { "mode": "Train", "operator": "Vande Bharat Express" }, "slot": { "category": "Normal Darshan" } },
+    "hotel": { "name": "Trikuta Guest House", "price_per_night": 1200 },
+    "hotel_nights": 2,
+    "sightseeing_places": ["Bhairavnath Temple", "Patnitop"],
+    "request": { "duration_days": 3, "origin": "Delhi", "pax": 2 }
+  }
+  ```
+* **Response:**
+  ```json
+  {
+    "status": "success",
+    "days": 3,
+    "feasible_places": ["Bhairavnath Temple"],
+    "infeasible_places": [
+      {
+        "place": "Patnitop",
+        "reason": "Patnitop is 85 km from Katra (~3 hrs each way) and cannot fit within a 3-day trip without physical exhaustion.",
+        "suggestion": "Consider extending your trip to 4+ days to comfortably visit Patnitop on a dedicated excursion day."
+      }
+    ],
+    "itinerary": [...]
+  }
+  ```
 
-`payment.py` renders a mock card/UPI checkout between selecting a plan and
-getting a confirmation ID. **Never contacts any real payment network** —
-do not enter a real card number.
+### `POST /api/yatra/authorize` (Human Authorization Gate)
+Records human consent on the active server session for a specific plan version.
+* **Request:** `{"session_id": "3974b81f-...", "plan_version": 1, "user_confirmation": "Confirm booking"}`
+* **Response:** `{"status": "success", "plan_version": 1, "message": "Server-side authorization recorded for Revision #1."}`
 
-## Project structure
+### `POST /api/yatra/confirm` (Simulated Booking Execution)
+Verifies server-side authorization and issues confirmation credentials. Prevents duplicate confirmations.
+* **Request:**
+  ```json
+  {
+    "option": {...},
+    "pax": 2,
+    "user_name": "Guest-User",
+    "hotel": {...},
+    "hotel_nights": 2,
+    "sightseeing_places": ["Bhairavnath Temple"],
+    "human_authorized": true,
+    "session_id": "3974b81f-...",
+    "plan_version": 1
+  }
+  ```
+* **Response:** `{"status": "success", "booking_id": "VD26753AC0", "plan_version": 1, "message": "May Mata Vaishno Devi grant you a safe and blessed yatra!"}`
 
-```
-yatra-agent/
-├── app.py                  # Streamlit UI: chat-first, tabs, 6-step booking flow
-├── agents/
-│   ├── coordinator.py         # orchestrates all agents for the conversation
-│   ├── conversation_agent.py   # multilingual NLU + devotional reply phrasing
-│   ├── itinerary_agent.py       # builds the day-wise itinerary
-│   └── content_agent.py          # historical background + video links
-├── agent.py                  # Transport/darshan search + real-timing-safe ranking (tested core)
-├── payment.py                 # Mock payment gateway (card/UPI checkout)
-├── airtable_store.py            # Optional: persist bookings to Airtable
-├── db.py                          # CSV-backed data access layer (multi-modal transport + hotels)
-├── explore_data.py                  # Curated places: history, video links, taxi/local-travel info
-├── yatra_info.py                      # Aarti timings, registration, routes, packing, helpline
-├── weather.py                           # Live forecast (Open-Meteo) + seasonal-average fallback
-├── build_dataset.py                       # Builds the master CSV datasets (run once)
-├── data_gen.py                              # Compatibility shim, bootstraps live data on first run
-├── requirements.txt
-├── .gitignore
-└── data/
-    ├── yatra_slots_dataset.csv   # master dataset (committed)
-    ├── flights_dataset.csv        # master dataset (committed)
-    ├── trains_dataset.csv          # master dataset (committed)
-    ├── buses_dataset.csv            # master dataset (committed)
-    ├── hotels_dataset.csv             # master dataset (committed)
-    └── *_live.csv, bookings.csv         # generated on first run (gitignored)
-```
+### `POST /api/yatra/rpa` (Playwright Browser Automation)
+Triggers headless Chromium form automation in the simulated sandbox.
+* **Request:** `{"user_name": "Guest-User", "pax_count": 2, "transport_text": "Train from Delhi", "slot_text": "Normal Darshan", "total_price": 5720, "session_id": "...", "plan_version": 1, "human_authorized": true}`
+* **Response:** `{"status": "success", "rpa": {"booking_id": "VD26753AC0", "status": "CONFIRMED", "details": "Automated simulated checkout verified."}}`
 
-Note: `auth.py` still exists in the repo from an earlier version but is no
-longer called from `app.py` - login/sign-up has been removed per the "no
-sign-up" requirement. It's kept only in case a future version wants to
-reintroduce optional accounts.
+---
 
-## Run locally
+## 6. Setup, Installation & Startup Guide
 
-```bash
+### Prerequisites
+- **Python:** Python 3.12 (64-bit)
+- **Node.js:** Node.js v18+ or v20+ with `npm`
+- **Operating System:** Windows, macOS, or Linux
+
+### Step 1: Environment Setup
+1. Clone or open the repository root `yatra-booking-agent`.
+2. Copy `.env.example` to `.env`:
+   ```powershell
+   copy .env.example .env
+   ```
+3. Populate `.env` with your credentials:
+   ```dotenv
+   MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority
+   MONGO_DB_NAME=yatra_booking_agent
+   GROQ_API_KEY=your_groq_api_key_here
+   ```
+
+### Step 2: Python Environment & Dependencies
+Activate your virtual environment or install dependencies:
+```powershell
+# Using the local project venv:
+.\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-streamlit run app.py
+playwright install chromium
 ```
 
-Live data files are generated automatically on first run. No login needed —
-just start typing your trip in the chat box.
-
-### Optional: enable LLM-powered multilingual mode
-
-```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-streamlit run app.py
+### Step 3: Frontend Dependencies
+```powershell
+cd frontend
+npm install
+cd ..
 ```
-See "Conversational AI (multilingual mode)" above for details.
 
-## Deploy for free (Streamlit Community Cloud)
+---
 
-1. Push this repo to GitHub
-2. Go to [share.streamlit.io](https://share.streamlit.io), sign in with GitHub
-3. "New app" → pick this repo/branch → main file `app.py` → Deploy
-4. (Optional) Add `ANTHROPIC_API_KEY` and/or Airtable secrets under
-   App settings → Secrets
+## 7. How to Run the Applications
 
-## Example prompts to try
+### Running Version 2 (React Frontend + FastAPI Backend)
 
-- "Book 2 people from Delhi next week"
-- "I want VIP darshan for 4 pilgrims from Mumbai this week"
-- "2 people from Delhi by train, helicopter darshan"
-- "Book a bus for 3 people from Delhi next month"
-- (With an API key configured) "2 log Delhi se agle hafte, VIP darshan chahiye"
+Open two terminal windows:
 
-## Roadmap / what a real version would need
+#### Terminal 1 — Start the FastAPI Backend:
+```powershell
+# From repository root (yatra-booking-agent):
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+```
+- **Backend API:** `http://127.0.0.1:8000/`
+- **Swagger Documentation:** `http://127.0.0.1:8000/docs`
+- **Health Check:** `http://127.0.0.1:8000/api/health`
 
-- Official Shrine Board data-sharing agreement for real slot inventory
-- IRCTC / airline-GDS / state transport-corporation API partnerships for
-  real schedules, fares, and booking
-- A real payment gateway integration (Razorpay/Stripe)
-- Proper salted-hash auth or a real identity provider
-- A proper database (Postgres/etc.) instead of CSV files
+#### Terminal 2 — Start the React Frontend:
+```powershell
+# From repository root:
+cd frontend
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+- **React Frontend URL:** `http://127.0.0.1:5173/`
 
-## Disclaimer
+---
 
-This project is an independent prototype and is not affiliated with or
-endorsed by the Shri Mata Vaishno Devi Shrine Board, Indian Railways, or
-any airline/bus operator.
+### Running Version 1 (Streamlit Monolith)
+```powershell
+# From repository root:
+python -m streamlit run app.py
+```
+- **Streamlit Local URL:** `http://localhost:8501/`
+
+---
+
+## 8. Verified Testing & Quality Assurance
+
+All test suites have been verified with genuine executions. Run any suite from the repository root:
+
+### Core Automated Test Commands
+
+| Test Suite | Command | Coverage | Status |
+| :--- | :--- | :--- | :---: |
+| **FastAPI REST Endpoints** | `python tests/test_fastapi_endpoints.py` | 8 core endpoints | **8/8 PASSED** |
+| **Preference-Aware Planner** | `python -m unittest tests/test_preference_aware_planner.py` | Feasibility engine, trek isolation, patnitop | **14/14 PASSED** |
+| **Server Auth Security** | `python -m unittest tests/test_server_authorization_security.py` | Stale versions, client flag bypass, locks | **9/9 PASSED** |
+| **Booking Lifecycle Audit** | `python -m unittest tests/test_booking_lifecycle_audit.py` | History, idempotency, revision revocation | **4/4 PASSED** |
+| **Intent Routing & Tourism** | `python tests/test_intent_routing.py` | Intent detection, slots, tourism guardrails | **81/81 PASSED** |
+| **Budget Calculation Engine** | `python -m unittest tests/test_budget_engine.py` | Decimal math, cost tiers, room allocation | **16/16 PASSED** |
+| **E2E Orchestrator Chat** | `python -m unittest tests/test_e2e_orchestrator_conversation.py` | 8-turn full conversational flow | **1/1 PASSED** |
+| **SQLite Session Store** | `python -m unittest tests/test_session_store.py` | ACID transactions, process concurrency | **8/8 PASSED** |
+| **Planning Mode Choice (Browser)** | `python -m unittest tests/test_planning_mode_choice_browser.py` | Choice screen, mode switcher, state sync | **5/5 PASSED** |
+| **Sightseeing Browser (Browser)**| `python -m unittest tests/test_sightseeing_browser_browser.py` | 29 destinations, search, category filters | **5/5 PASSED** |
+| **Feasibility UI (Browser)** | `python -m unittest tests/test_feasibility_ui_browser.py` | Feasible badges, infeasible advisories | **1/1 PASSED (5/5)** |
+| **10-Step Browser E2E Journey** | `python -m unittest tests/test_browser_e2e_journey.py` | Complete real-browser user journey | **2/2 PASSED** |
+| **Journey E Edge Cases (Browser)**| `python -m unittest tests/test_audit_journey_e_edge_cases.py` | Reload recovery, tab isolation, budget bounds | **5/5 PASSED** |
+| **RPA Slot Availability (Playwright)** | `python -m unittest tests/test_rpa_availability_week5.py` | Calendar navigation, explicit waits, slot extraction | **10/10 PASSED** |
+| **RPA Error Handling & Retry (Playwright)** | `python -m unittest tests/test_rpa_error_handling_week6.py` | Bounded retries, state validation, pause-and-handover | **14/14 PASSED** |
+| **Agent-RPA Integration Layer (LangChain + Playwright)** | `python -m unittest tests/test_agent_rpa_integration_week7.py` | Tool registration, ISO date conversion, parameter passing, handover | **23/23 PASSED** |
+| **User-Controlled Workflow & Checkpoints (HITL + RPA)** | `python -m unittest tests/test_user_controlled_workflow_week8.py` | OTP/CAPTCHA checkpoints, safe pause, SQLite persistence, cross-session isolation | **22/22 PASSED** |
+| **E2E System Integration (Week 9)** | `python -m unittest tests/test_e2e_system_integration_week9.py` | 18 end-to-end integration scenarios (FastAPI -> Agent -> RPA -> Mock Portal) | **18/18 PASSED** |
+| **Agent Tool-Calling Accuracy (Week 9)** | `python -m unittest tests/test_tool_calling_accuracy_week9.py` | Tool binding, argument extraction, duplicate prevention, deterministic fallback | **12/12 PASSED** |
+| **MongoDB Retrieval Load Testing (Week 9)** | `python -m unittest tests/test_mongodb_load_week9.py` | Part A (Atlas status) & Part B (in-memory fallback concurrency 1, 5, 10, 20) | **9/9 PASSED** |
+| **Passwordless Email Auth & Security (Week 9)** | `python -m unittest tests/test_passwordless_auth_week9.py` | HMAC-SHA256, constant-time compare, CSRF defense, 404 prod protection, session isolation | **31/31 PASSED** |
+| **Browser Auth & Guest Experience (Week 9)** | `python -m unittest tests/test_browser_auth_guest_week9.py` | Default guest mode, full browser OTP authentication, saved trips modal | **2/2 PASSED** |
+| **Ethical Compliance, Masking & Logging (Week 10)** | `python -m unittest tests/test_week10_ethical_compliance.py` | PII masking, token/OTP redaction, structured event logging, correlation ID, Track A/B isolation | **23/23 PASSED** |
+| **Frontend Production Build** | `npm run build` (in `frontend/`) | Vite production assets | **PASSED (0 errors)** |
+| **Frontend Lint** | `npm run lint` (in `frontend/`) | oxlint syntax & rules | **PASSED (0 errors, 0 warnings)** |
+
+---
+
+### Full-Project Regression Suite Run
+To run all 164 automated tests across Weeks 5, 6, 7, 8, 9, and 10 in a single execution:
+```powershell
+python -m unittest tests.test_rpa_availability_week5 tests.test_rpa_error_handling_week6 tests.test_agent_rpa_integration_week7 tests.test_user_controlled_workflow_week8 tests.test_e2e_system_integration_week9 tests.test_tool_calling_accuracy_week9 tests.test_mongodb_load_week9 tests.test_passwordless_auth_week9 tests.test_browser_auth_guest_week9 tests.test_week10_ethical_compliance
+```
+*Result:* **164 tests ran — 0 failures, 0 errors.**
+
+---
+
+### Key Milestone Documentation
+- **Week 5 Documentation:** [`docs/Week5_RPA_Availability_Documentation.md`](docs/Week5_RPA_Availability_Documentation.md)
+- **Week 6 Documentation:** [`docs/Week6_RPA_Error_Handling_Documentation.md`](docs/Week6_RPA_Error_Handling_Documentation.md)
+- **Week 7 Documentation:** [`docs/Week7_Agent_RPA_Integration_Documentation.md`](docs/Week7_Agent_RPA_Integration_Documentation.md)
+- **Week 8 Documentation:** [`docs/Week8_User_Controlled_Workflow_Documentation.md`](docs/Week8_User_Controlled_Workflow_Documentation.md)
+- **Shrine Board Feasibility & Dual-Track Architecture:** [`docs/Shrine_Board_RPA_Feasibility_Assessment.md`](docs/Shrine_Board_RPA_Feasibility_Assessment.md)
+- **Week 9 E2E System Integration:** [`docs/Week9_System_Integration_and_E2E_Testing.md`](docs/Week9_System_Integration_and_E2E_Testing.md)
+- **Week 9 MongoDB Load Testing:** [`docs/Week9_MongoDB_Load_Test_Report.md`](docs/Week9_MongoDB_Load_Test_Report.md)
+- **Week 9 Passwordless Email Authentication:** [`docs/Passwordless_Email_Authentication.md`](docs/Passwordless_Email_Authentication.md)
+- **Week 10 Ethical Boundary & Compliance Audit:** [`docs/Week10_Ethical_Boundary_and_Compliance_Audit.md`](docs/Week10_Ethical_Boundary_and_Compliance_Audit.md)
+- **Week 10 Data Privacy & Logging Implementation:** [`docs/Week10_Data_Privacy_and_Logging_Implementation.md`](docs/Week10_Data_Privacy_and_Logging_Implementation.md)
+
+---
+
+## 9. Final Mentor Demonstration Checklist
+
+### Step-by-Step Live Walkthrough (10 Steps)
+
+1. **Service Verification:**
+   - Launch FastAPI (`uvicorn backend.main:app --port 8000`) and React frontend (`npm run dev -- --port 5173`).
+   - Open `http://127.0.0.1:8000/api/health` to confirm `{"status": "healthy"}`.
+2. **Choice Screen Presentation:**
+   - Navigate to `http://127.0.0.1:5173/` and click *"Plan Your Yatra"*.
+   - Point out that neither mode is forced: Option 1 (*"Plan with a Form"*) and Option 2 (*"Chat with AI"*) are presented equally.
+3. **Form-Based Structured Intake:**
+   - Select *"Plan with a Form"*.
+   - Configure: Departure City = Delhi, 2 Pilgrims, 3 Days, Train mode, Normal Darshan.
+   - Click *"Search Yatra Options"*.
+4. **Transport & Accommodation Selection:**
+   - Select verified train (e.g. Vande Bharat Express) on Step 2.
+   - Proceed to Step 3 and select certified guest house or skip hotel.
+5. **Interactive Sightseeing Discovery:**
+   - Step 4 displays all 29 destinations.
+   - Demonstrate real-time search (type *"Patnitop"*), category tabs with live count badges, and expand *"View Heritage Details"*.
+   - Select **Bhairavnath Temple** (trek route) and **Patnitop** (distant mountain excursion).
+6. **Generating Feasibility Advisories (Journey A & D):**
+   - Click *"Generate Day-Wise Itinerary"*.
+   - Point out that **Bhairavnath Temple** is green-badged and scheduled on Day 2.
+   - Point out the **Infeasible Advisory Banner** for **Patnitop**: explains that 85 km on mountain roads cannot fit into a 3-day trip without physical exhaustion, recommending 4+ days.
+   - Verify Day 2 remains exclusively dedicated to the holy trek.
+7. **Bi-Directional Mode Switching (Journey C):**
+   - Click *"💬 Switch to Chat"* on the top switcher bar.
+   - Observe that the chat loads with shared trip context (`📍 Delhi • 2 Pilgrims • 3 Days`), itinerary badges, and selected destinations.
+8. **Conversational Revision & Guardrails (Journey B):**
+   - Ask an informational query: *"What are the Aarti timings at Bhawan?"*.
+   - Demonstrate that the bot returns rich spiritual timings without wiping trip details or resetting the plan.
+   - Request a revision: *"Change our trip to 5 days and add Baba Dhansar"*.
+   - Note that the plan updates to Revision #2 and re-evaluates feasibility.
+9. **Authorization Gate & Tamper-Proofing (Journey D):**
+   - Return to Form mode (*"📋 Switch to Form"*) and proceed to Step 6 (*"Authorization & RPA"*).
+   - Point out the Human Confirmation Gate. Check the authorization box to record server-side authorization.
+   - Click *"⚡ Run Playwright RPA Mock Verification"* to watch the headless browser agent execute form automation.
+10. **Confirmation & Yatra Pass:**
+    - Click *"Authorize & Confirm Booking"*.
+    - Show the confirmed reference ID (e.g. `VD26753AC0`), divine blessing message, and Katra RFID reporting counter instructions.
+
+---
+
+### Emergency Fallback Procedures
+- **If Port 8000 or 5173 is already in use:**
+  ```powershell
+  # Check and terminate conflicting processes on Windows:
+  Get-Process -Id (Get-NetTCPConnection -LocalPort 8000).OwningProcess | Stop-Process -Force
+  Get-Process -Id (Get-NetTCPConnection -LocalPort 5173).OwningProcess | Stop-Process -Force
+  ```
+- **If Groq API Key quota is exhausted or network is offline:**
+  - The deterministic feasibility engine, travel search, hotel lookup, and sightseeing browser continue to operate 100% locally from CSV inventories and SQLite without external LLM calls.
+  - Informational tourism questions gracefully fall back to local rule-based responses in `explore_data.py`.
+
+---
+
+## 10. Technical Limitations & Project Boundaries
+
+1. **Curated & Grounded Data Catalogue:**
+   - Schedules, fares, guest houses, and shrine slots are drawn from curated datasets in `data/`. No official public unauthenticated APIs exist for IRCTC train bookings or SMVDSB darshan slots.
+2. **Mock RPA Automation Sandbox:**
+   - The Playwright RPA agent operates strictly within a local mock checkout sandbox. It does **not** interface with live payment gateways, credit card processing, OTPs, CAPTCHAs, or government servers.
+3. **Session Scope:**
+   - Web session persistence uses `sessionStorage` (scoped to the individual browser tab) to prevent cart cross-contamination between tabs. Persistent server-side state is stored in local ACID SQLite (`data/sessions.db`).
+
+---
+
+## 11. Academic Disclaimer
+
+This project is an academic prototype developed for educational demonstration purposes. It is not affiliated with, authorized, or endorsed by the Shri Mata Vaishno Devi Shrine Board (SMVDSB), Indian Railways (IRCTC), or any commercial transit provider.

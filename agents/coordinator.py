@@ -22,6 +22,7 @@ handles all rendering, so the agent logic stays testable on its own.
 """
 import mongodb_agent
 import re
+from typing import Optional, Dict, Any, List
 import agent as legacy_agent
 import db
 from agents import conversation_agent, content_agent, itinerary_agent, knowledge_agent, recommendation_agent, rpa_agent
@@ -51,6 +52,9 @@ def process_itinerary_message(user_text, current_request=None, current_itinerary
             "itinerary": current_itinerary,
             "recommendation": None,
             "last_itinerary_context": last_context,
+            "source": "itinerary_agent",
+            "response_source": "itinerary_agent",
+            "knowledge_source": "itinerary_templates",
         }
 
     valid, err_msg = itinerary_agent.validate_itinerary_command(current_itinerary, cmd)
@@ -63,6 +67,9 @@ def process_itinerary_message(user_text, current_request=None, current_itinerary
             "itinerary": current_itinerary,
             "recommendation": None,
             "last_itinerary_context": last_context,
+            "source": "itinerary_agent",
+            "response_source": "itinerary_agent",
+            "knowledge_source": "itinerary_templates",
         }
 
     if cmd["action"] == "SHOW":
@@ -75,6 +82,9 @@ def process_itinerary_message(user_text, current_request=None, current_itinerary
             "itinerary": current_itinerary,
             "recommendation": None,
             "last_itinerary_context": new_ctx or last_context,
+            "source": "itinerary_agent",
+            "response_source": "itinerary_agent",
+            "knowledge_source": "itinerary_templates",
         }
     else:
         updated_itinerary, edit_summary, new_ctx = itinerary_agent.apply_itinerary_edit(current_itinerary, cmd)
@@ -87,6 +97,9 @@ def process_itinerary_message(user_text, current_request=None, current_itinerary
             "itinerary": updated_itinerary,
             "recommendation": None,
             "last_itinerary_context": new_ctx or last_context,
+            "source": "itinerary_agent",
+            "response_source": "itinerary_agent",
+            "knowledge_source": "itinerary_templates",
         }
 
 
@@ -170,6 +183,9 @@ def process_trip_message(user_text, current_request=None, current_itinerary=None
         "itinerary": itinerary,
         "recommendation": rec,
         "diff": diff,
+        "source": "trip_coordinator",
+        "response_source": "conversation_agent",
+        "knowledge_source": "local_catalog",
     }
 
 
@@ -183,17 +199,14 @@ def detect_intent(user_text):
     return conversation_agent.detect_intent(user_text)
 
 
-def answer_tourism_query(user_text, last_tourism_place=None):
+def answer_tourism_query(user_text, last_tourism_place=None, current_request=None):
     """
-    Handles tourism queries while preserving the existing structured
-    responses, query classification, and follow-up context.
-
-    MongoDB retrieval is invoked through the LangChain agent.
-    The existing knowledge formatter remains in place for compatibility.
+    Handles tourism queries using MongoDB-grounded LangChain tool-calling
+    powered by Groq (openai/gpt-oss-20b).
+    When MongoDB retrieval and LLM response succeed, uses the grounded LLM answer.
+    When MongoDB or Groq is unavailable, smoothly falls back to the local knowledge agent.
     """
-
     # Step 1: Query the MongoDB-powered LangChain agent.
-    # Failure here must not crash the existing tourism conversation.
     mongodb_result = {}
     mongodb_error = None
 
@@ -202,31 +215,57 @@ def answer_tourism_query(user_text, last_tourism_place=None):
     except Exception as exc:
         mongodb_error = str(exc)
 
-    # Step 2: Preserve the existing structured tourism knowledge.
-    # This keeps the formatter and conversational follow-ups working.
+    # Condition A: MongoDB retrieval and LLM response succeeded
+    if (
+        mongodb_result.get("status") in ("success", "no_tool_call")
+        and mongodb_result.get("answer")
+        and len(mongodb_result["answer"].strip()) > 10
+    ):
+        llm_reply = mongodb_result["answer"].strip()
+
+        # Extract place and classification for context tracking without running duplicate local pipeline
+        query_kind = knowledge_agent.classify_tourism_topic(user_text, last_place=last_tourism_place)
+        specific_places = knowledge_agent.find_specific_places(user_text)
+        detected_place = specific_places[0]["name"] if specific_places else last_tourism_place
+
+        return {
+            "intent": "TOURISM",
+            "reply": llm_reply,
+            "plan": None,
+            "request": current_request,
+            "itinerary": None,
+            "query_kind": query_kind,
+            "last_tourism_place": detected_place,
+            "mongodb_tool_results": mongodb_result.get("tool_results", []),
+            "mongodb_status": mongodb_result.get("status", "success"),
+            "source": "mongodb_llm",
+            "response_source": mongodb_result.get("response_source", "mongodb_llm"),
+            "knowledge_source": mongodb_result.get("knowledge_source", "atlas"),
+        }
+
+    # Condition B / C / D: Fallback to existing local knowledge_agent and conversation_agent
     knowledge = knowledge_agent.get_jk_tourism_knowledge(
         user_text,
         last_place=last_tourism_place,
     )
-
-    # Step 3: Generate the existing structured Markdown response.
     reply = conversation_agent.format_tourism_reply(knowledge)
 
-    # Step 4: Return the original response fields and retain MongoDB
-    # retrieval information for debugging and verification.
     result = {
         "intent": "TOURISM",
         "reply": reply,
         "plan": None,
-        "request": None,
+        "request": current_request,
         "itinerary": None,
         "query_kind": knowledge.get("query_kind"),
         "last_tourism_place": knowledge.get("last_place"),
         "mongodb_tool_results": mongodb_result.get("tool_results", []),
         "mongodb_status": mongodb_result.get(
             "status",
-            "error" if mongodb_error else "unknown",
+            "error" if mongodb_error else "fallback",
         ),
+        "source": "local_fallback",
+        "response_source": "conversation_agent",
+        "knowledge_source": "local_fallback",
     }
 
     if mongodb_error:
@@ -265,6 +304,9 @@ def process_weather_message(user_text, current_request=None):
         "plan": None,
         "request": current_request,
         "itinerary": None,
+        "source": "weather_service",
+        "response_source": "weather_service",
+        "knowledge_source": "weather_service",
         "tool_execution": {
             "tool": "check_weather_tool",
             "status": "success",
@@ -320,6 +362,9 @@ def process_booking_message(user_text, current_request=None, pending_options=Non
             "plan": None,
             "request": current_request,
             "itinerary": None,
+            "source": "rpa_playwright",
+            "response_source": "rpa_agent",
+            "knowledge_source": "rpa_playwright",
             "tool_execution": {
                 "tool": "execute_rpa_booking_tool",
                 "status": "pending_human_confirmation"
@@ -362,6 +407,9 @@ def process_booking_message(user_text, current_request=None, pending_options=Non
         "plan": None,
         "request": current_request,
         "itinerary": None,
+        "source": "rpa_playwright",
+        "response_source": "rpa_agent",
+        "knowledge_source": "rpa_playwright",
         "rpa_info": rpa_info,
         "tool_execution": {
             "tool": "execute_rpa_booking_tool",
@@ -371,50 +419,35 @@ def process_booking_message(user_text, current_request=None, pending_options=Non
     }
 
 
-def route_message(user_text, current_request=None, current_itinerary=None, last_tourism_place=None, last_itinerary_context=None, pending_options=None, api_key=None, base_url=None):
-    """Top-level dispatcher. Determines what the pilgrim is asking for
-    before choosing a processing path:
-
-      BOOKING       -> process_booking_message() (Human confirmation + RPA tool)
-      WEATHER       -> process_weather_message() (Weather tool)
-      ITINERARY     -> process_itinerary_message()
-      TOURISM       -> answer_tourism_query()   (knowledge/content agents)
-      TRIP_PLANNING -> process_trip_message()   (existing booking flow)
-      UNKNOWN       -> process_trip_message()   (safe default)
-
-    Tourism results never include a travel plan. Callers must not overwrite
-    an existing trip_request when request is None.
+def route_message(
+    user_text,
+    current_request=None,
+    current_itinerary=None,
+    last_tourism_place=None,
+    last_itinerary_context=None,
+    pending_options=None,
+    api_key=None,
+    base_url=None,
+    session_id=None,
+    llm=None,
+):
+    """Top-level dispatcher and entry point for the persistent conversational trip orchestrator.
+    Routes to agents.orchestrator.orchestrate_conversational_turn while maintaining backward
+    compatibility for existing callers and legacy wizard routes.
     """
-    intent = conversation_agent.detect_intent(user_text)
-
-    if intent == "BOOKING":
-        res = process_booking_message(user_text, current_request=current_request, pending_options=pending_options)
-        res["last_tourism_place"] = last_tourism_place
-        res["last_itinerary_context"] = last_itinerary_context
-        return res
-
-    if intent == "WEATHER":
-        res = process_weather_message(user_text, current_request=current_request)
-        res["last_tourism_place"] = last_tourism_place
-        res["last_itinerary_context"] = last_itinerary_context
-        return res
-
-    if intent == "ITINERARY":
-        res = process_itinerary_message(user_text, current_request=current_request, current_itinerary=current_itinerary, last_context=last_itinerary_context)
-        res["last_tourism_place"] = last_tourism_place
-        return res
-
-    if intent == "TOURISM":
-        res = answer_tourism_query(user_text, last_tourism_place=last_tourism_place)
-        res["last_itinerary_context"] = last_itinerary_context
-        return res
-
-    # TRIP_PLANNING or UNKNOWN -> existing stateful trip flow
-    result = process_trip_message(user_text, current_request=current_request, current_itinerary=current_itinerary, api_key=api_key, base_url=base_url)
-    result["intent"] = "TRIP_PLANNING" if intent == "UNKNOWN" else intent
-    result["last_tourism_place"] = last_tourism_place
-    result["last_itinerary_context"] = last_itinerary_context
-    return result
+    import agents.orchestrator as orchestrator
+    return orchestrator.orchestrate_conversational_turn(
+        user_text=user_text,
+        session_id=session_id,
+        current_request=current_request,
+        current_itinerary=current_itinerary,
+        last_tourism_place=last_tourism_place,
+        last_itinerary_context=last_itinerary_context,
+        pending_options=pending_options,
+        api_key=api_key,
+        base_url=base_url,
+        llm=llm,
+    )
 
 
 def get_hotel_options(check_in_date, category=None):
@@ -449,6 +482,9 @@ def build_final_itinerary(option, hotel=None, hotel_nights=0, sightseeing_places
 def confirm_booking(option, pax, user_name, hotel=None, hotel_nights=0, sightseeing_places=None):
     """Delegates to the existing, tested booking logic, then adds a
     devotional confirmation message on top."""
+    if isinstance(option, dict) and "flight" not in option and "transport" in option:
+        option = dict(option)
+        option["flight"] = option["transport"]
     booking_id = legacy_agent.confirm_booking(
         option, pax, user_name,
         hotel=hotel, hotel_nights=hotel_nights,
@@ -468,4 +504,104 @@ def execute_rpa_demo(user_name, pax_count, transport_text, slot_text, total_pric
         total_price=total_price,
         headless=headless,
     )
+
+
+def check_slot_availability_rpa(requested_date=None, category=None, headless=True, max_attempts=3):
+    """RPAAgent duty (Week 5 & 6) - runs Playwright task to navigate mock portal calendar, retry with backoff, and extract slot statuses."""
+    return rpa_agent.check_yatra_slot_availability(
+        requested_date=requested_date,
+        category=category,
+        headless=headless,
+        max_attempts=max_attempts,
+    )
+
+
+def process_availability_message(user_text, session_id=None, current_request=None):
+    """RPAAgent duty (Week 7) - conversational availability checking wrapper routing to orchestrator with LangChain RPA tool."""
+    import agents.orchestrator as orchestrator
+    return orchestrator.orchestrate_conversational_turn(
+        user_text=user_text,
+        session_id=session_id,
+        current_request=current_request,
+    )
+
+
+def start_user_controlled_workflow(
+    session_id: str,
+    user_name: str,
+    pax_count: int,
+    transport_text: str,
+    slot_text: str,
+    total_price: float,
+    checkpoint_mode: Optional[str] = None,
+    headless: bool = True,
+    db_path: Optional[str] = None,
+):
+    """RPAAgent duty (Week 8) - initiates user-controlled RPA workflow pausing at security checkpoints."""
+    return rpa_agent.execute_user_controlled_booking_workflow(
+        session_id=session_id,
+        workflow_id=None,
+        user_name=user_name,
+        pax_count=pax_count,
+        transport_text=transport_text,
+        slot_text=slot_text,
+        total_price=total_price,
+        checkpoint_mode=checkpoint_mode,
+        user_confirmed_action=False,
+        headless=headless,
+        db_path=db_path,
+    )
+
+
+def resume_user_controlled_workflow(
+    session_id: str,
+    workflow_id: str,
+    user_confirmed_action: bool = True,
+    manual_input_value: Optional[str] = None,
+    simulate_manual_clearance: bool = False,
+    headless: bool = True,
+    db_path: Optional[str] = None,
+):
+    """RPAAgent duty (Week 8) - resumes paused RPA workflow upon explicit user confirmation and validation."""
+    return rpa_agent.execute_user_controlled_booking_workflow(
+        session_id=session_id,
+        workflow_id=workflow_id,
+        user_confirmed_action=user_confirmed_action,
+        manual_input_value=manual_input_value,
+        simulate_manual_clearance=simulate_manual_clearance,
+        headless=headless,
+        db_path=db_path,
+    )
+
+
+def cancel_user_controlled_workflow(
+    session_id: str,
+    workflow_id: str,
+    reason: str = "User cancelled workflow",
+    db_path: Optional[str] = None,
+):
+    """RPAAgent duty (Week 8) - safely cancels a paused user-controlled workflow."""
+    from agents import session_store
+    return session_store.cancel_user_workflow(
+        workflow_id=workflow_id,
+        session_id=session_id,
+        reason=reason,
+        db_path=db_path,
+    )
+
+
+def get_user_controlled_workflow_status(
+    session_id: str,
+    workflow_id: str,
+    db_path: Optional[str] = None,
+):
+    """RPAAgent duty (Week 8) - retrieves current status of user-controlled workflow with session validation."""
+    from agents import session_store
+    return session_store.get_user_workflow(
+        workflow_id=workflow_id,
+        session_id=session_id,
+        db_path=db_path,
+    )
+
+
 

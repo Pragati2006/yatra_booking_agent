@@ -76,11 +76,16 @@ def _extract_pax(text):
         num = int(m2.group(1))
         if not re.search(r"\b" + str(num) + r"\s*days?\b", t):
             return max(1, num)
+    m_to = re.search(r"\b(?:travellers|travelers|pilgrims|people|pax|members)\s+(?:to|is|become)\s+(\d+)\b", t)
+    if m_to:
+        return max(1, int(m_to.group(1)))
     words_to_num = {
         "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10
     }
     for word, num in words_to_num.items():
         if re.search(r"\b" + word + r"\s*(people|pax|person|persons|members|pilgrims|travellers|travelers)\b", t):
+            return num
+        if re.search(r"\b(?:travellers|travelers|pilgrims|people|pax|members)\s+(?:to|is|become)\s+" + word + r"\b", t):
             return num
     return None
 
@@ -100,7 +105,7 @@ def _extract_origin(text):
         "on", "at", "around",
         "travelling", "traveling", "visiting", "going", "planning", "train", "flight", "bus", "is",
         "city", "starting", "from", "change", "make", "instead", "rather", "want", "prefer", "meant",
-        "trip", "yatra", "day", "days", "people", "pax", "person", "relaxed", "devotional", "budget",
+        "trip", "yatra", "day", "days", "duration", "durations", "time", "date", "dates", "cost", "price", "pricing", "amount", "total", "people", "pax", "person", "persons", "pilgrim", "pilgrims", "members", "traveller", "travellers", "traveler", "travelers", "relaxed", "devotional", "budget",
         "update", "modify", "edit", "fix", "switch", "keep", "more", "less", "friendly", "comfortable",
         "premium", "luxury", "balanced", "sightseeing", "mixed", "family", "solo", "couple", "friends",
         "group", "pilgrimage", "parents", "fast", "slow", "packed", "peaceful", "actually"
@@ -201,11 +206,13 @@ def get_changed_fields(old_req, new_req):
         ("travel_style", "Pacing & Style", lambda v: str(v).title() if v else None),
         ("trip_focus", "Trip Focus", lambda v: str(v).title() if v else None),
         ("budget_preference", "Budget Preference", lambda v: str(v).title() if v else None),
+        ("accommodation_preference", "Stay Preference", lambda v: str(v).title() if v else None),
+        ("total_budget", "Budget", lambda v: f"₹{v:,.0f}" if v else None),
     ]
     for key, label, fmt in fields:
         old_v = old_req.get(key)
         new_v = new_req.get(key)
-        if old_v != new_v and new_v is not None and old_v is not None:
+        if old_v != new_v and new_v is not None:
             diff[key] = {
                 "label": label,
                 "old": fmt(old_v) if old_v is not None else "Not set",
@@ -599,10 +606,16 @@ def build_plan(request):
             buffer_hours = DARSHAN_PREP_BUFFER_HOURS.get(s["category"], 8)
             earliest_possible_darshan = arrival + timedelta(hours=buffer_hours)
             if _slot_datetime(s) >= earliest_possible_darshan:
+                tr_copy = dict(tr)
+                tr_copy["arrival_time"] = arrival.strftime("%H:%M")
+                tr_copy["arrival_date"] = arrival.strftime("%Y-%m-%d")
+                dur = tr_copy.get("duration_mins", 0)
+                if dur:
+                    tr_copy["duration_str"] = f"{dur // 60}h {dur % 60}m"
+                tr_copy["fare_per_person"] = tr_copy.get("price", 0)
+                tr_copy["total_fare"] = tr_copy.get("price", 0) * request["pax"]
                 total = (tr["price"] + s["price"]) * request["pax"]
-                combos.append({"flight": tr, "transport": tr, "slot": s, "total_price": total})
-
-
+                combos.append({"flight": tr_copy, "transport": tr_copy, "slot": s, "total_price": total})
 
     if not combos:
         return {
@@ -624,7 +637,7 @@ def build_plan(request):
         for m in ("flight", "train", "bus"):
             for c in combos:
                 if c["flight"]["mode"] == m:
-                    key = (c["flight"]["id"], c["flight"]["mode"], c["slot"]["category"])
+                    key = (c["flight"]["mode"], c["flight"]["id"])
                     if key not in seen:
                         seen.add(key)
                         options.append(c)
@@ -633,7 +646,7 @@ def build_plan(request):
     for c in combos:
         if len(options) >= MAX_OPTIONS:
             break
-        key = (c["flight"]["id"], c["flight"]["mode"], c["slot"]["category"])
+        key = (c["flight"]["mode"], c["flight"]["id"])
         if key in seen:
             continue
         seen.add(key)

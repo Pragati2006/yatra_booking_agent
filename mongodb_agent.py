@@ -73,6 +73,9 @@ def _get_llm():
 _MONGODB_AGENT_CACHE = {}
 
 
+import mongodb_tools
+
+
 def answer_mongodb_query(user_query: str) -> dict:
     """
     Answer a tourism/Yatra information query using LangChain
@@ -83,6 +86,7 @@ def answer_mongodb_query(user_query: str) -> dict:
     if q_norm in _MONGODB_AGENT_CACHE:
         return _MONGODB_AGENT_CACHE[q_norm]
 
+    token = mongodb_tools.start_retrieval_tracking()
     try:
         llm = _get_llm()
 
@@ -94,62 +98,66 @@ def answer_mongodb_query(user_query: str) -> dict:
             ("human", user_query),
         ]
 
-        # First model call: decide whether a MongoDB tool is required.
+        # Iterative tool-calling loop (up to 3 turns) to allow model to gather data and generate answer
         response = llm_with_tools.invoke(messages)
-
         tool_results = []
+        iteration = 0
+        max_iterations = 3
 
-        # Execute every tool requested by the model.
-        for tool_call in response.tool_calls:
-            tool_name = tool_call["name"]
-            tool_args = tool_call.get("args", {})
-
-            tool = TOOL_MAP.get(tool_name)
-
-            if not tool:
-                continue
-
-            result = tool.invoke(tool_args)
-
-            tool_results.append(
-                {
-                    "tool": tool_name,
-                    "arguments": tool_args,
-                    "result": result,
-                }
-            )
-
+        while response.tool_calls and iteration < max_iterations:
+            iteration += 1
             messages.append(response)
 
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call["id"],
-                    "content": str(result),
-                }
-            )
+            for tool_call in response.tool_calls:
+                tool_name = tool_call["name"]
+                tool_args = tool_call.get("args", {})
 
-        # No tool was requested.
-        if not tool_results:
-            out = {
-                "answer": response.content,
-                "tool_results": [],
-                "status": "no_tool_call",
-            }
+                tool = TOOL_MAP.get(tool_name)
+                if not tool:
+                    continue
 
-            _MONGODB_AGENT_CACHE[q_norm] = out
-            return out
+                result = tool.invoke(tool_args)
 
-        # Generate the final answer using the retrieved MongoDB data.
-        final_response = llm_with_tools.invoke(messages)
+                tool_results.append(
+                    {
+                        "tool": tool_name,
+                        "arguments": tool_args,
+                        "result": result,
+                    }
+                )
+
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call["id"],
+                        "content": str(result),
+                    }
+                )
+
+            # Re-invoke model with tool execution messages
+            response = llm_with_tools.invoke(messages)
+
+        final_answer = response.content or ""
+
+        tracked_sources = mongodb_tools.get_tracked_sources()
+        if "atlas" in tracked_sources:
+            knowledge_source = "atlas"
+        elif "local_fallback" in tracked_sources:
+            knowledge_source = "local_fallback"
+        else:
+            knowledge_source = "local_fallback"
 
         out = {
-            "answer": final_response.content,
+            "answer": final_answer,
             "tool_results": tool_results,
-            "status": "success",
+            "status": "success" if (tool_results and final_answer) else ("no_tool_call" if final_answer else "fallback"),
+            "source": "mongodb_llm",
+            "response_source": "mongodb_llm",
+            "knowledge_source": knowledge_source,
         }
 
-        _MONGODB_AGENT_CACHE[q_norm] = out
+        if final_answer:
+            _MONGODB_AGENT_CACHE[q_norm] = out
         return out
 
     except Exception as exc:
@@ -198,6 +206,9 @@ def answer_mongodb_query(user_query: str) -> dict:
                 "answer": "",
                 "tool_results": [],
                 "status": "error",
+                "source": "local_fallback",
+                "response_source": "conversation_agent",
+                "knowledge_source": "local_fallback",
                 "error": str(exc),
                 "tool_error": str(tool_exc),
             }
@@ -208,10 +219,15 @@ def answer_mongodb_query(user_query: str) -> dict:
         # We successfully retrieved data directly from MongoDB,
         # even though the LLM tool-calling step failed.
         if tool_results:
+            tracked_sources = mongodb_tools.get_tracked_sources()
+            ks = "atlas" if "atlas" in tracked_sources else "local_fallback"
             out = {
                 "answer": "",
                 "tool_results": tool_results,
                 "status": "direct_tool_fallback",
+                "source": "mongodb_llm",
+                "response_source": "mongodb_agent",
+                "knowledge_source": ks,
                 "error": str(exc),
             }
 
@@ -222,11 +238,16 @@ def answer_mongodb_query(user_query: str) -> dict:
             "answer": "",
             "tool_results": [],
             "status": "fallback",
+            "source": "local_fallback",
+            "response_source": "conversation_agent",
+            "knowledge_source": "local_fallback",
             "error": str(exc),
         }
 
         _MONGODB_AGENT_CACHE[q_norm] = out
         return out
+    finally:
+        mongodb_tools.clear_retrieval_tracking(token)
 
 if __name__ == "__main__":
     queries = [

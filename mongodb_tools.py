@@ -1,13 +1,49 @@
+import contextvars
 import functools
+import mongo_db
 from mongo_db import tourist_attractions, yatra_information
 import explore_data
 import yatra_info
 
 
+_retrieval_sources_var = contextvars.ContextVar("retrieval_sources", default=None)
+
+
+def start_retrieval_tracking():
+    """Starts a new tracking context for tool retrievals."""
+    sources = set()
+    return _retrieval_sources_var.set(sources)
+
+
+def record_retrieval_source(source: str):
+    """Record that a retrieval operation fetched data from source ('atlas' or 'local_fallback')."""
+    if source in ("atlas", "local_fallback"):
+        sources = _retrieval_sources_var.get()
+        if sources is not None:
+            sources.add(source)
+
+
+def get_tracked_sources() -> list:
+    """Returns list of sources used in the current context."""
+    sources = _retrieval_sources_var.get()
+    return list(sources) if sources is not None else []
+
+
+def clear_retrieval_tracking(token=None):
+    """Clears or resets retrieval tracking context."""
+    if token is not None:
+        try:
+            _retrieval_sources_var.reset(token)
+        except Exception:
+            pass
+    else:
+        _retrieval_sources_var.set(None)
+
+
 def _local_search_tourist_attraction(query):
     places = explore_data.get_places()
     q = query.strip().lower()
-    if not q:
+    if not query:
         return []
     # 1. Exact match
     exact = [p for p in places if p["name"].lower() == q]
@@ -27,6 +63,15 @@ def _local_search_tourist_attraction(query):
 
 
 _ATTRACTION_CACHE = {}
+_ATTRACTION_SOURCE_CACHE = {}
+
+
+def clear_caches():
+    """Clear memory caches for deterministic testing and reset."""
+    _ATTRACTION_CACHE.clear()
+    _ATTRACTION_SOURCE_CACHE.clear()
+    _YATRA_SEARCH_CACHE.clear()
+    _YATRA_SOURCE_CACHE.clear()
 
 
 def search_tourist_attraction(query):
@@ -42,6 +87,18 @@ def search_tourist_attraction(query):
     query = query.strip()
     if not query:
         return []
+
+    # Initialize q_key at function entry to prevent UnboundLocalError
+    q_key = query.lower()
+    if q_key in _ATTRACTION_CACHE:
+        cached_source = _ATTRACTION_SOURCE_CACHE.get(q_key)
+        if not cached_source:
+            cached_source = "atlas" if (tourist_attractions is not None and mongo_db.is_available()) else "local_fallback"
+            _ATTRACTION_SOURCE_CACHE[q_key] = cached_source
+        if _ATTRACTION_CACHE[q_key]:
+            record_retrieval_source(cached_source)
+        return _ATTRACTION_CACHE[q_key]
+
     # Handle nearby/around Katra queries separately.
     nearby_keywords = (
         "around katra",
@@ -53,14 +110,12 @@ def search_tourist_attraction(query):
         "visit near katra",
     )
 
-    q_lower = query.lower()
-
-    if any(keyword in q_lower for keyword in nearby_keywords):
+    if any(keyword in q_key for keyword in nearby_keywords):
         nearby_query = "Katra"
-
         nearby_results = []
 
-        if tourist_attractions is not None:
+        # Only query Atlas if circuit breaker confirms connection health
+        if tourist_attractions is not None and mongo_db.is_available():
             try:
                 # Search descriptions, routes and categories for Katra-area places.
                 nearby_results = list(
@@ -75,7 +130,8 @@ def search_tourist_attraction(query):
                         {"_id": 0},
                     )
                 )
-            except Exception:
+            except Exception as exc:
+                mongo_db.mark_offline(exc)
                 nearby_results = []
 
         # Remove the Katra base-town document itself.
@@ -87,10 +143,20 @@ def search_tourist_attraction(query):
 
         if nearby_results:
             _ATTRACTION_CACHE[q_key] = nearby_results
+            _ATTRACTION_SOURCE_CACHE[q_key] = "atlas"
+            record_retrieval_source("atlas")
             return nearby_results
 
         # Use the existing local tourism dataset as fallback.
-        local_places = _local_search_tourist_attraction("Jammu")
+        all_places = explore_data.get_places()
+        local_places = [
+            p
+            for p in all_places
+            if "katra" in (p.get("distance", "") + " " + p.get("description", "")).lower()
+            or p.get("category") in ("On the trek route", "Nearby temple", "Nature")
+        ]
+        if not local_places:
+            local_places = _local_search_tourist_attraction("Jammu")
 
         local_places = [
             place
@@ -99,12 +165,15 @@ def search_tourist_attraction(query):
         ]
 
         _ATTRACTION_CACHE[q_key] = local_places
+        if local_places:
+            _ATTRACTION_SOURCE_CACHE[q_key] = "local_fallback"
+            record_retrieval_source("local_fallback")
+        else:
+            _ATTRACTION_SOURCE_CACHE[q_key] = "none"
         return local_places
-    q_key = query.lower()
-    if q_key in _ATTRACTION_CACHE:
-        return _ATTRACTION_CACHE[q_key]
 
-    if tourist_attractions is not None:
+    # Only query Atlas if circuit breaker confirms connection health
+    if tourist_attractions is not None and mongo_db.is_available():
         try:
             regex = {"$regex": query, "$options": "i"}
 
@@ -117,6 +186,8 @@ def search_tourist_attraction(query):
             )
             if exact_results:
                 _ATTRACTION_CACHE[q_key] = exact_results
+                _ATTRACTION_SOURCE_CACHE[q_key] = "atlas"
+                record_retrieval_source("atlas")
                 return exact_results
 
             # 2. Name contains query
@@ -128,6 +199,8 @@ def search_tourist_attraction(query):
             )
             if name_results:
                 _ATTRACTION_CACHE[q_key] = name_results
+                _ATTRACTION_SOURCE_CACHE[q_key] = "atlas"
+                record_retrieval_source("atlas")
                 return name_results
 
             # 3. Region/category match
@@ -144,6 +217,8 @@ def search_tourist_attraction(query):
             )
             if region_results:
                 _ATTRACTION_CACHE[q_key] = region_results
+                _ATTRACTION_SOURCE_CACHE[q_key] = "atlas"
+                record_retrieval_source("atlas")
                 return region_results
 
             # 4. Description match
@@ -155,12 +230,19 @@ def search_tourist_attraction(query):
             )
             if description_results:
                 _ATTRACTION_CACHE[q_key] = description_results
+                _ATTRACTION_SOURCE_CACHE[q_key] = "atlas"
+                record_retrieval_source("atlas")
                 return description_results
-        except Exception:
-            pass
+        except Exception as exc:
+            mongo_db.mark_offline(exc)
 
     fallback_res = _local_search_tourist_attraction(query)
     _ATTRACTION_CACHE[q_key] = fallback_res
+    if fallback_res:
+        _ATTRACTION_SOURCE_CACHE[q_key] = "local_fallback"
+        record_retrieval_source("local_fallback")
+    else:
+        _ATTRACTION_SOURCE_CACHE[q_key] = "none"
     return fallback_res
 
 
@@ -230,21 +312,26 @@ def get_yatra_information(topic):
     if not topic:
         return None
 
-    if yatra_information is not None:
+    if yatra_information is not None and mongo_db.is_available():
         try:
             result = yatra_information.find_one(
                 {"topic": topic},
                 {"_id": 0},
             )
             if result:
+                record_retrieval_source("atlas")
                 return result
-        except Exception:
-            pass
+        except Exception as exc:
+            mongo_db.mark_offline(exc)
 
-    return _local_get_yatra_information(topic)
+    fb_result = _local_get_yatra_information(topic)
+    if fb_result:
+        record_retrieval_source("local_fallback")
+    return fb_result
 
 
 _YATRA_SEARCH_CACHE = {}
+_YATRA_SOURCE_CACHE = {}
 
 
 def search_yatra_information(query):
@@ -261,6 +348,12 @@ def search_yatra_information(query):
         return []
 
     if query in _YATRA_SEARCH_CACHE:
+        cached_source = _YATRA_SOURCE_CACHE.get(query)
+        if not cached_source:
+            cached_source = "atlas" if (yatra_information is not None and mongo_db.is_available()) else "local_fallback"
+            _YATRA_SOURCE_CACHE[query] = cached_source
+        if _YATRA_SEARCH_CACHE[query]:
+            record_retrieval_source(cached_source)
         return _YATRA_SEARCH_CACHE[query]
 
     topic_keywords = {
@@ -296,7 +389,7 @@ def search_yatra_information(query):
             matched_topics.add(topic)
 
     if matched_topics:
-        if yatra_information is not None:
+        if yatra_information is not None and mongo_db.is_available():
             try:
                 results = list(
                     yatra_information.find(
@@ -306,9 +399,11 @@ def search_yatra_information(query):
                 )
                 if results:
                     _YATRA_SEARCH_CACHE[query] = results
+                    _YATRA_SOURCE_CACHE[query] = "atlas"
+                    record_retrieval_source("atlas")
                     return results
-            except Exception:
-                pass
+            except Exception as exc:
+                mongo_db.mark_offline(exc)
 
         # Fallback to local
         fb_results = []
@@ -318,10 +413,12 @@ def search_yatra_information(query):
                 fb_results.append(item)
         if fb_results:
             _YATRA_SEARCH_CACHE[query] = fb_results
+            _YATRA_SOURCE_CACHE[query] = "local_fallback"
+            record_retrieval_source("local_fallback")
             return fb_results
 
     # Fallback: search stored text fields
-    if yatra_information is not None:
+    if yatra_information is not None and mongo_db.is_available():
         try:
             regex = {"$regex": query, "$options": "i"}
             results = list(
@@ -338,11 +435,14 @@ def search_yatra_information(query):
             )
             if results:
                 _YATRA_SEARCH_CACHE[query] = results
+                _YATRA_SOURCE_CACHE[query] = "atlas"
+                record_retrieval_source("atlas")
                 return results
-        except Exception:
-            pass
+        except Exception as exc:
+            mongo_db.mark_offline(exc)
 
     _YATRA_SEARCH_CACHE[query] = []
+    _YATRA_SOURCE_CACHE[query] = "none"
     return []
 
 

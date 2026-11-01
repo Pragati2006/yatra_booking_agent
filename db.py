@@ -268,7 +268,14 @@ def create_booking(user_name, pax_count, yatra_slot, transport, total_price, hot
         airtable_store.append_row("bookings", BOOKINGS_COLUMNS, new_row)
     else:
         bookings = pd.read_csv(BOOKINGS_FILE)
-        bookings = pd.concat([bookings, pd.DataFrame([new_row])], ignore_index=True)
+        new_row_df = pd.DataFrame([new_row])
+        valid_cols = [c for c in new_row_df.columns if not new_row_df[c].isna().all()]
+        if bookings.empty or bookings.dropna(how="all").empty:
+            bookings = new_row_df
+        else:
+            non_na_bookings = bookings.dropna(axis=1, how="all")
+            bookings = pd.concat([non_na_bookings, new_row_df[valid_cols]], ignore_index=True)
+        bookings = bookings.reindex(columns=BOOKINGS_COLUMNS)
         bookings.to_csv(BOOKINGS_FILE, index=False)
 
     return booking_id

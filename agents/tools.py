@@ -5,6 +5,7 @@ Exposes modular data tools for searching transport options, yatra slots,
 J&K tourism knowledge, weather guidance, and Playwright RPA automation.
 """
 
+from typing import Optional, List, Dict, Any
 from langchain.tools import tool
 import db
 import explore_data
@@ -82,6 +83,35 @@ def execute_rpa_booking_tool(user_name: str, pax_count: int, transport_text: str
     )
 
 
+@tool
+def check_yatra_availability_tool(date: str, category: Optional[str] = None, headless: bool = True) -> dict:
+    """Checks real-time Vaishno Devi Yatra slot availability via Playwright RPA automation against the local mock portal.
+
+    Use this tool whenever the user asks to check availability, search open slots, or verify remaining capacity
+    for Vaishno Devi Darshan on a specific date (in YYYY-MM-DD ISO format) and optional darshan category
+    ('Normal Darshan', 'VIP Darshan', 'Helicopter Darshan').
+
+    Args:
+        date: The yatra date in YYYY-MM-DD ISO format (e.g., '2026-11-20' or '2026-10-20').
+        category: Optional category filter: 'Normal Darshan', 'VIP Darshan', or 'Helicopter Darshan'.
+        headless: Whether to execute browser automation in headless mode (default True).
+
+    Returns:
+        Structured dictionary containing status ('SUCCESS', 'HANDOVER_REQUIRED'), requested date,
+        category filter, total slots, breakdown counts (available, full, unavailable), slot records
+        (with session, time, price, seats), empty state flag, and audit logs.
+    """
+    return rpa_agent.check_yatra_slot_availability(
+        requested_date=date,
+        category=category,
+        headless=headless,
+    )
+
+
+# Standard alias for LangChain tool conventions
+check_yatra_availability = check_yatra_availability_tool
+
+
 def get_all_tools():
     """Returns the list of LangChain tool instances for agent orchestration."""
     return [
@@ -90,4 +120,6 @@ def get_all_tools():
         get_tourism_info_tool,
         check_weather_tool,
         execute_rpa_booking_tool,
+        check_yatra_availability_tool,
     ]
+

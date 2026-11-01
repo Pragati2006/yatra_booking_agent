@@ -21,8 +21,42 @@ import json
 import os
 import random
 import re
+from datetime import date, datetime, timedelta
+from typing import Optional, Dict, Any, Tuple, List
 
 import agent as legacy_agent  # the existing, tested transport/darshan parsing + ranking logic
+
+# ---------------------------------------------------------------------------
+# Supported Darshan Categories (Week 7 RPA Availability Checking)
+# ---------------------------------------------------------------------------
+SUPPORTED_CATEGORIES = [
+    "Normal Darshan",
+    "VIP Darshan",
+    "Helicopter Darshan",
+]
+
+_MONTH_MAP = {
+    "jan": 1, "january": 1,
+    "feb": 2, "february": 2,
+    "mar": 3, "march": 3,
+    "apr": 4, "april": 4,
+    "may": 5,
+    "jun": 6, "june": 6,
+    "jul": 7, "july": 7,
+    "aug": 8, "august": 8,
+    "sep": 9, "september": 9, "sept": 9,
+    "oct": 10, "october": 10,
+    "nov": 11, "november": 11,
+    "dec": 12, "december": 12,
+}
+
+_AVAILABILITY_PATTERNS = [
+    r"\b(check|find|lookup|see|show|tell me|is there|are there)\b.{0,30}\b(availability|available slots?|open slots?|darshan slots?|yatra slots?|slot status|vacant slots?)\b",
+    r"\b(slot|slots|darshan)\s+(availability|status)\b",
+    r"\b(check|is|are)\s+(any\s+)?(vip|normal|helicopter)?\s*(darshan)?\s*availability\b",
+    r"\b(any slots available|slots available|available slots|open slots)\b",
+    r"\bcheck availability\b",
+]
 
 # ---------------------------------------------------------------------------
 # Intent Detection — rule-based, no API key required
@@ -39,9 +73,10 @@ _TOURISM_QUESTION_PATTERNS = [
     r"\b(packing|what to pack|what to bring|what to carry|what to wear|should i pack|should we pack)\b",
     r"\b(yatra registration|yatra parchi|yatra slip|how to register|registration steps)\b",
     r"\b(trek route|which route|how to reach bhawan)\b",
-    r"\b(nearby places|places to see|places to visit|tourist spots|sightseeing spots)\b",
+    r"\b(nearby places|nearby attractions|nearby destinations|places to see|places to visit|tourist spots|sightseeing spots|tourist attractions|attractions)\b",
+    r"\b(give me|show me|tell me)\b.{0,50}\b(attraction|attractions|place|places|sightseeing)\b",
     r"\b(bhairavnath|ardhkuwari|charan paduka|ban ganga|shiv khori|patnitop|sanasar|mansar|bahu fort|amar mahal|raghunath|peer kho|himkoti|baba dhansar|jhajjar kotli|nau devi)\b",
-    r"\b(vaishno devi history|vaishno devi significance|vaishno devi legend|about vaishno devi)\b",
+    r"\b(vaishno devi history|vaishno devi significance|vaishno devi legend|about vaishno devi|what is vaishno devi|what is (the )?(vaishno devi )?yatra|tell me about (the )?yatra)\b",
     r"\b(how far|what (can|to) (i|we) do|tell me more|how to reach|how do i reach|what is the distance|where is it|where located|tell me about it)\b",
 ]
 
@@ -132,20 +167,328 @@ def detect_intent(user_text):
         if re.search(pat, tl):
             return "ITINERARY"
 
-    # 4. Strong trip-planning signals take priority (case-insensitive)
+    # 4. Check for RPA availability checking intent (Week 7)
+    for pat in _AVAILABILITY_PATTERNS:
+        if re.search(pat, tl):
+            return "AVAILABILITY"
+
+    # 5. Strong trip-planning signals take priority (case-insensitive)
     for pat in _TRIP_PLANNING_PATTERNS:
         if re.search(pat, tl):
             return "TRIP_PLANNING"
     if _has_trip_origin_phrase(tl):
         return "TRIP_PLANNING"
 
-    # 5. Check for pure tourism/information patterns
+    # 6. Check for pure tourism/information patterns
     for pat in _TOURISM_QUESTION_PATTERNS:
         if re.search(pat, tl):
             return "TOURISM"
 
-    # 6. Default — treat as trip planning (preserves prior behaviour)
+    # 7. Default — treat as trip planning (preserves prior behaviour)
     return "UNKNOWN"
+
+
+# ---------------------------------------------------------------------------
+# Week 7: RPA Availability Parameter Extraction & Natural Language Parsing
+# ---------------------------------------------------------------------------
+
+def parse_and_validate_yatra_date(text: str, context: Optional[Dict[str, Any]] = None) -> Tuple[Optional[str], Optional[str], bool, bool, Optional[str]]:
+    """
+    Extracts and validates a date from natural-language user query.
+    Returns: (iso_date, raw_matched_str, is_missing, is_invalid, error_reason)
+    
+    Rules:
+    1. Converts understandable natural-language dates to ISO format (YYYY-MM-DD).
+    2. Validates calendar correctness (e.g. 2026-02-31 is invalid).
+    3. If user says 'Check availability' without a date and context has no unambiguous date,
+       returns is_missing=True (do NOT fabricate or invent dates).
+    4. Follow-up queries (e.g. 'Are any slots available on that date?') use unambiguous
+       context from context.get('last_availability_date') or context.get('requirements', {}).get('start_date').
+    """
+    if not text:
+        text = ""
+    t = text.strip()
+    tl = t.lower()
+
+    # Relative dates
+    ref_date = date.today()
+    if re.search(r"\bday after tomorrow\b", tl):
+        target = ref_date + timedelta(days=2)
+        return target.isoformat(), "day after tomorrow", False, False, None
+    elif re.search(r"\btomorrow\b", tl):
+        target = ref_date + timedelta(days=1)
+        return target.isoformat(), "tomorrow", False, False, None
+    elif re.search(r"\btoday\b", tl):
+        return ref_date.isoformat(), "today", False, False, None
+
+    # Pattern 1: ISO format YYYY-MM-DD or YYYY/MM/DD
+    m_iso = re.search(r"\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b", t)
+    if m_iso:
+        y, m, d = int(m_iso.group(1)), int(m_iso.group(2)), int(m_iso.group(3))
+        raw = m_iso.group(0)
+        try:
+            dt = datetime(y, m, d)
+            return dt.strftime("%Y-%m-%d"), raw, False, False, None
+        except ValueError as ve:
+            return None, raw, False, True, str(ve)
+
+    # Pattern 2: DD-MM-YYYY or DD/MM/YYYY
+    m_dmy = re.search(r"\b(\d{1,2})[-/](\d{1,2})[-/](\d{4})\b", t)
+    if m_dmy:
+        d, m, y = int(m_dmy.group(1)), int(m_dmy.group(2)), int(m_dmy.group(3))
+        raw = m_dmy.group(0)
+        try:
+            dt = datetime(y, m, d)
+            return dt.strftime("%Y-%m-%d"), raw, False, False, None
+        except ValueError as ve:
+            return None, raw, False, True, str(ve)
+
+    # Pattern 3: Natural language: "20 November 2026", "20th Nov 2026", "20 Nov", "20th November"
+    # Match: DD [st/nd/rd/th] Month [YYYY]
+    m_nat1 = re.search(
+        r"\b(\d{1,2})(?:st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|sept|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)(?:\s*,?\s*(\d{4}))?\b",
+        tl,
+    )
+    if m_nat1:
+        d = int(m_nat1.group(1))
+        m_str = m_nat1.group(2)
+        m = _MONTH_MAP[m_str]
+        y_str = m_nat1.group(3)
+        y = int(y_str) if y_str else 2026  # target baseline year
+        raw = m_nat1.group(0)
+        try:
+            dt = datetime(y, m, d)
+            return dt.strftime("%Y-%m-%d"), raw, False, False, None
+        except ValueError as ve:
+            return None, raw, False, True, str(ve)
+
+    # Pattern 4: Natural language: "November 20, 2026" or "Nov 20th 2026"
+    m_nat2 = re.search(
+        r"\b(january|february|march|april|may|june|july|august|september|sept|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s*,?\s*(\d{4}))?\b",
+        tl,
+    )
+    if m_nat2:
+        m_str = m_nat2.group(1)
+        m = _MONTH_MAP[m_str]
+        d = int(m_nat2.group(2))
+        y_str = m_nat2.group(3)
+        y = int(y_str) if y_str else 2026
+        raw = m_nat2.group(0)
+        try:
+            dt = datetime(y, m, d)
+            return dt.strftime("%Y-%m-%d"), raw, False, False, None
+        except ValueError as ve:
+            return None, raw, False, True, str(ve)
+
+    # Check for invalid day expressions like "32nd Nov", "35th October"
+    m_inv_day = re.search(r"\b(\d{2,3})(?:st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|sept|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)", tl)
+    if m_inv_day and int(m_inv_day.group(1)) > 31:
+        return None, m_inv_day.group(0), False, True, f"Day {m_inv_day.group(1)} is invalid for calendar months"
+
+    # Follow-up context resolution: e.g. "on that date", "same date", or follow-up question
+    has_date_ref = bool(re.search(r"\b(that date|that day|same date|same day|that time)\b", tl))
+    if context:
+        ctx_date = context.get("last_availability_date")
+        if not ctx_date and isinstance(context.get("requirements"), dict):
+            ctx_date = context["requirements"].get("start_date")
+        if not ctx_date and isinstance(context.get("current_request"), dict):
+            ctx_date = context["current_request"].get("start_date")
+
+        if ctx_date:
+            if has_date_ref or ("availability" in tl or "slot" in tl):
+                return ctx_date, "previous context date", False, False, None
+
+    # No date supplied
+    return None, None, True, False, None
+
+
+def extract_and_validate_category(text: str) -> Tuple[Optional[str], Optional[str], bool, Optional[str]]:
+    """
+    Extracts and validates darshan category from user text against supported categories.
+    Returns: (normalized_category, raw_matched_str, unsupported_category_flag, unsupported_val)
+    """
+    if not text:
+        return None, None, False, None
+    tl = text.lower()
+
+    # Check for unsupported category phrases first
+    unsupported_match = re.search(
+        r"\b(super\s*vip|royal(?:\s+darshan)?|gold(?:\s+darshan)?|platinum(?:\s+darshan)?|vvip|executive(?:\s+darshan)?|special\s+priority)\b",
+        tl,
+    )
+    if unsupported_match:
+        raw_val = unsupported_match.group(0).strip().title()
+        return None, raw_val, True, raw_val
+
+    # Helicopter Darshan
+    if re.search(r"\b(helicopter|heli)\b", tl):
+        return "Helicopter Darshan", "Helicopter Darshan", False, None
+
+    # VIP Darshan
+    if re.search(r"\bvip\b", tl):
+        return "VIP Darshan", "VIP Darshan", False, None
+
+    # Normal Darshan
+    if re.search(r"\b(normal(?:\s+darshan)?|regular(?:\s+darshan)?|general(?:\s+darshan)?|standard(?:\s+darshan)?)\b", tl):
+        return "Normal Darshan", "Normal Darshan", False, None
+
+    # None specified
+    return None, None, False, None
+
+
+def extract_availability_parameters(text: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """
+    High-level parameter extractor mapping user natural language into structured RPA parameters.
+    Ensures:
+    - Dates are converted to ISO YYYY-MM-DD.
+    - Dates are validated against calendar rules.
+    - Category values are checked against supported mock portal categories.
+    - Does not invent dates or categories when missing.
+    - Accurately reports missing or invalid fields.
+    """
+    iso_date, raw_date, is_missing, is_invalid, invalid_reason = parse_and_validate_yatra_date(text, context=context)
+    cat, raw_cat, unsupported_cat, unsupported_val = extract_and_validate_category(text)
+
+    return {
+        "date": iso_date,
+        "category": cat,
+        "raw_date": raw_date,
+        "raw_category": raw_cat,
+        "missing_date": is_missing,
+        "invalid_date": is_invalid,
+        "invalid_date_reason": invalid_reason,
+        "unsupported_category": unsupported_cat,
+        "unsupported_category_value": unsupported_val,
+    }
+
+
+def format_missing_date_prompt() -> str:
+    """Friendly devotional clarification prompt when user has not specified a date."""
+    return (
+        "🙏 **Jai Mata Di!**\n\n"
+        "To check live yatra darshan availability via our Playwright RPA agent, please specify your preferred date "
+        "(e.g., **'20 November 2026'** or **'2026-10-20'**).\n\n"
+        "You can also specify a category such as **Normal Darshan**, **VIP Darshan**, or **Helicopter Darshan**."
+    )
+
+
+def format_invalid_date_prompt(raw_date: Optional[str], reason: Optional[str] = "") -> str:
+    """Devotional prompt rejecting an invalid calendar date."""
+    reason_str = f" ({reason})" if reason else ""
+    raw_str = f" **'{raw_date}'**" if raw_date else ""
+    return (
+        "🙏 **Jai Mata Di!**\n\n"
+        f"The requested date{raw_str} is invalid{reason_str}. "
+        "Please provide a valid calendar date in `YYYY-MM-DD` or `DD Month YYYY` format (e.g., **'20 November 2026'**)."
+    )
+
+
+def format_unsupported_category_prompt(category_val: Optional[str]) -> str:
+    """Devotional prompt rejecting an unsupported darshan category."""
+    cat_str = f" **'{category_val}'**" if category_val else ""
+    return (
+        "🙏 **Jai Mata Di!**\n\n"
+        f"The requested category{cat_str} is not recognized by the Shrine Board booking system.\n\n"
+        "The supported darshan categories are:\n"
+        "1. **Normal Darshan** (Standard pilgrim darshan)\n"
+        "2. **VIP Darshan** (Special Aarti & priority queue)\n"
+        "3. **Helicopter Darshan** (Katra-Sanjhichhat helicopter service)\n\n"
+        "Which category would you like to check?"
+    )
+
+
+def format_availability_reply(result: Dict[str, Any], requested_date: str, category: Optional[str] = None) -> str:
+    """
+    Interprets structured Week 5 & Week 6 RPA availability results and generates
+    a warm, natural-language response.
+    Handles:
+    A. Successful check with slots (capacity, times, price, status)
+    B. Empty calendar (no slots open, without describing as system error)
+    C. Recovered error (transient failure resolved via Week 6 retry)
+    D. Human handover (safe pause, reason, technical details)
+    """
+    # Case D: Human Handover Required
+    if result.get("handover_required") or result.get("status") == "HANDOVER_REQUIRED":
+        reason = result.get("handover_reason") or "Automated checking could not safely verify page state."
+        guidance = result.get("guidance") or "Please verify slot availability directly on the Shrine Board portal."
+        attempts = result.get("retry_attempts_used", 1)
+        return (
+            "🙏 **Jai Mata Di! Human Handover Notice**\n\n"
+            f"Automated availability checking for **{requested_date}** could not safely continue.\n\n"
+            f"• **Reason:** {reason}\n"
+            f"• **Attempts Made:** {attempts}\n"
+            f"• **Safety Protocol:** Our RPA agent safely paused to avoid unverified or misleading availability claims.\n"
+            f"• **Pilgrim Guidance:** {guidance}\n\n"
+            "_Our pilgrim support team has been notified. You may also check official Shrine Board offline counters at Katra._"
+        )
+
+    # Case F: Hard Failure (non-handover failure)
+    if result.get("status") == "FAILED" or result.get("status") == "ERROR":
+        err_msg = result.get("error") or "Unknown portal communication error."
+        return (
+            "🙏 **Jai Mata Di!**\n\n"
+            f"Unable to retrieve slot availability for **{requested_date}** due to a portal communication issue: {err_msg}.\n\n"
+            "Please try again in a few moments or specify another date."
+        )
+
+    # Case B: No Available Slots / Empty Calendar
+    is_empty = result.get("is_empty", False)
+    total_slots = result.get("total_slots", 0)
+    slots = result.get("slots", [])
+
+    cat_label = f" for **{category}**" if category else ""
+
+    if is_empty or total_slots == 0:
+        return (
+            "🙏 **Jai Mata Di! Availability Status**\n\n"
+            f"No yatra darshan slots are currently open for **{requested_date}**{cat_label}.\n\n"
+            "ℹ️ *Note:* This is not a system error; the quota for this date is either fully allocated or not yet released by the Shrine Board.\n\n"
+            "**Recommendation:** Please consider checking adjacent dates (e.g., 2026-10-20 or 2026-10-21) or an alternative darshan category."
+        )
+
+    # Case A & C: Successful extraction
+    avail_count = result.get("available_count", sum(1 for s in slots if s.get("availability_status") == "available"))
+    full_count = result.get("full_count", sum(1 for s in slots if s.get("availability_status") == "full"))
+    unavail_count = result.get("unavailable_count", sum(1 for s in slots if s.get("availability_status") == "unavailable"))
+
+    lines = [
+        "🙏 **Jai Mata Di! Yatra Slot Availability**\n",
+        f"Availability for **{requested_date}**{cat_label}: found **{total_slots}** slot{'s' if total_slots != 1 else ''} "
+        f"({avail_count} available, {full_count} full, {unavail_count} unavailable):\n",
+    ]
+
+    # Mention Week 6 recovery if applicable
+    if result.get("recovered"):
+        lines.append("_Note: Slot statuses were successfully extracted after recovering from transient portal latency via automated retry._\n")
+
+    for s in slots:
+        slot_id = s.get("slot_id", "SLOT")
+        slot_name = s.get("slot_name", "Darshan")
+        session = s.get("session", "")
+        slot_time = s.get("time", "")
+        status = s.get("availability_status", "available")
+        capacity = s.get("remaining_capacity")
+        price = s.get("price", 0.0)
+
+        price_str = f"₹{int(price)}" if price else "Free (Included)"
+
+        if status == "available":
+            cap_str = f"🟢 **Available** ({capacity} seats left)" if capacity is not None else "🟢 **Available**"
+        elif status == "full":
+            cap_str = "🔴 **Full** (0 seats left)"
+        else:
+            cap_str = "⚪ **Unavailable**"
+
+        session_str = f" • _{session}_" if session else ""
+        time_str = f" • 🕒 {slot_time}" if slot_time else ""
+
+        lines.append(f"• **{slot_id}** — **{slot_name}**{time_str}{session_str}")
+        lines.append(f"  - Status: {cap_str} | Fare: **{price_str}**")
+
+    lines.append("\nMay Mata Vaishno Devi grant you a blessed and fulfilling yatra! Would you like to proceed with booking travel and stay for this date?")
+
+    return "\n".join(lines)
+
 
 DEVOTIONAL_GREETINGS = [
     "🙏 Jai Mata Di! Let's plan your yatra.",
