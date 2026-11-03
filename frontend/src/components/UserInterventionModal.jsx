@@ -8,6 +8,7 @@ export default function UserInterventionModal({
   onClose,
   onWorkflowComplete,
   onWorkflowCancelled,
+  onWorkflowProgress,
 }) {
   const safeData = workflowData || {};
   const {
@@ -34,8 +35,8 @@ export default function UserInterventionModal({
     return diff > 0 ? diff : 0;
   });
 
-  const isOtp = workflowState === 'OTP_REQUIRED' || checkpointMode === 'OTP';
-  const isCaptcha = workflowState === 'CAPTCHA_REQUIRED' || checkpointMode === 'CAPTCHA';
+  const isOtp = workflowState === 'OTP_REQUIRED' || (workflowState !== 'CAPTCHA_REQUIRED' && checkpointMode === 'OTP');
+  const isCaptcha = workflowState === 'CAPTCHA_REQUIRED' || (workflowState !== 'OTP_REQUIRED' && checkpointMode === 'CAPTCHA');
   const isExpired = workflowState === 'EXPIRED' || secondsRemaining <= 0;
   const isCancelled = workflowState === 'CANCELLED';
   const isCompleted = workflowState === 'USER_ACTION_COMPLETED' || workflowState === 'COMPLETED';
@@ -58,13 +59,16 @@ export default function UserInterventionModal({
           clearInterval(timer);
           setWorkflowState('EXPIRED');
           setStatusMessage('Security workflow expired due to inactivity. Please restart the booking process.');
+          if (onWorkflowProgress) {
+            onWorkflowProgress({ state: 'EXPIRED', phase: 'EXPIRED' });
+          }
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isExpired, isCancelled, isCompleted]);
+  }, [isExpired, isCancelled, isCompleted, onWorkflowProgress]);
 
   // Periodic status poll (optional check if user verified in another tab)
   useEffect(() => {
@@ -79,6 +83,7 @@ export default function UserInterventionModal({
             if (freshState === 'USER_ACTION_COMPLETED') {
               setSuccessResult(res.workflow);
               setErrorMessage('');
+              if (onWorkflowProgress) onWorkflowProgress({ state: 'USER_ACTION_COMPLETED', phase: 'COMPLETED', result: res.workflow });
               if (onWorkflowComplete) onWorkflowComplete(res.workflow);
             }
           }
@@ -88,7 +93,7 @@ export default function UserInterventionModal({
       }
     }, 4000);
     return () => clearInterval(pollInterval);
-  }, [workflowId, sessionId, workflowState, isExpired, isCancelled, isCompleted, onWorkflowComplete]);
+  }, [workflowId, sessionId, workflowState, isExpired, isCancelled, isCompleted, onWorkflowComplete, onWorkflowProgress]);
 
   const formatCountdown = (secs) => {
     const mins = Math.floor(secs / 60);
@@ -106,8 +111,15 @@ export default function UserInterventionModal({
   const handleResume = async (simulate = false) => {
     if (resuming || cancelling) return;
     setResuming(true);
-    setResumingPhase('RESUMING_AUTOMATION');
+    setResumingPhase(isOtp ? 'VALIDATING_OTP' : 'PAYMENT_SANDBOX');
     setErrorMessage('');
+
+    if (onWorkflowProgress) {
+      onWorkflowProgress({
+        state: workflowState,
+        phase: isOtp ? 'VALIDATING_OTP' : 'PAYMENT_SIMULATING',
+      });
+    }
 
     try {
       const payload = {
@@ -119,7 +131,6 @@ export default function UserInterventionModal({
         headless: true,
       };
 
-      setResumingPhase('VERIFICATION_SUCCESSFUL');
       const result = await resumeRPAWorkflow(payload);
 
       if (result.status === 'SUCCESS') {
@@ -129,6 +140,9 @@ export default function UserInterventionModal({
         setCompletionTime(new Date().toLocaleTimeString());
         setErrorMessage('');
         setStatusMessage(result.message || 'Verification successful! Your booking is confirmed.');
+        if (onWorkflowProgress) {
+          onWorkflowProgress({ state: 'USER_ACTION_COMPLETED', phase: 'COMPLETED', result });
+        }
         if (onWorkflowComplete) {
           onWorkflowComplete(result);
         }
@@ -139,29 +153,51 @@ export default function UserInterventionModal({
         setSimulatedInput('');
         setErrorMessage('');
         setStatusMessage(result.message || 'OTP verified successfully. Manual CAPTCHA challenge is now required.');
+        if (onWorkflowProgress) {
+          onWorkflowProgress({ state: result.state || 'CAPTCHA_REQUIRED', phase: 'CAPTCHA_REQUIRED', workflow: result });
+        }
       } else if (result.status === 'VALIDATION_FAILED') {
         setResumingPhase('');
         setErrorMessage(result.message || 'Validation failed: Security checkpoint has not been cleared in the portal.');
+        if (onWorkflowProgress) {
+          onWorkflowProgress({ state: workflowState, phase: 'FAILED', error: result.message });
+        }
       } else if (result.status === 'EXPIRED') {
         setResumingPhase('');
         setWorkflowState('EXPIRED');
         setErrorMessage('Workflow has expired. Please restart the booking process.');
+        if (onWorkflowProgress) {
+          onWorkflowProgress({ state: 'EXPIRED', phase: 'EXPIRED' });
+        }
       } else if (result.status === 'CANCELLED') {
         setResumingPhase('');
         setWorkflowState('CANCELLED');
         setErrorMessage('Workflow has been cancelled.');
+        if (onWorkflowProgress) {
+          onWorkflowProgress({ state: 'CANCELLED', phase: 'CANCELLED' });
+        }
       } else if (result.status === 'HANDOVER_REQUIRED') {
         setResumingPhase('');
         setWorkflowState('HANDOVER_REQUIRED');
         setErrorMessage(result.message || 'Browser automation encountered an issue. Manual completion required.');
+        if (onWorkflowProgress) {
+          onWorkflowProgress({ state: 'HANDOVER_REQUIRED', phase: 'FAILED', error: result.message });
+        }
       } else {
         setResumingPhase('');
         setErrorMessage(result.message || 'Failed to resume workflow.');
+        if (onWorkflowProgress) {
+          onWorkflowProgress({ state: workflowState, phase: 'FAILED', error: result.message });
+        }
       }
     } catch (err) {
       console.error('Error resuming workflow:', err?.message || 'Network error');
       setResumingPhase('');
-      setErrorMessage(err.response?.data?.detail || 'An unexpected error occurred while resuming the workflow.');
+      const msg = err.response?.data?.detail || err.response?.data?.message || err.message || 'An unexpected error occurred while resuming the workflow.';
+      setErrorMessage(msg);
+      if (onWorkflowProgress) {
+        onWorkflowProgress({ state: workflowState, phase: 'FAILED', error: msg });
+      }
     } finally {
       setResuming(false);
     }
@@ -180,12 +216,53 @@ export default function UserInterventionModal({
       });
       setWorkflowState('CANCELLED');
       setStatusMessage('Workflow cancelled successfully.');
+      if (onWorkflowProgress) {
+        onWorkflowProgress({ state: 'CANCELLED', phase: 'CANCELLED' });
+      }
       if (onWorkflowCancelled) onWorkflowCancelled(res);
     } catch (err) {
       console.error('Error cancelling workflow:', err?.message || 'Network error');
       setErrorMessage('Failed to cancel workflow.');
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const getModalStageStatus = (num) => {
+    switch (num) {
+      case 1:
+        return { status: 'Completed', tone: 'success', icon: '✓' };
+      case 2:
+        return { status: 'Completed', tone: 'success', icon: '✓' };
+      case 3:
+        if (isCompleted || isCaptcha || resumingPhase === 'PAYMENT_SANDBOX') {
+          return { status: 'Verified', tone: 'success', icon: '✓' };
+        }
+        if (isExpired && isOtp) return { status: 'Failed / Expired', tone: 'danger', icon: '✕' };
+        if (isOtp && resuming) return { status: 'In Progress', tone: 'info', icon: '⏳' };
+        if (isOtp) return { status: 'Waiting for User', tone: 'warning', icon: '⚠️' };
+        return { status: 'Verified', tone: 'success', icon: '✓' };
+      case 4:
+        if (isCompleted || resumingPhase === 'PAYMENT_SANDBOX') {
+          return { status: 'Verified', tone: 'success', icon: '✓' };
+        }
+        if (isExpired && isCaptcha) return { status: 'Failed / Expired', tone: 'danger', icon: '✕' };
+        if (isCaptcha && resuming) return { status: 'In Progress', tone: 'info', icon: '⏳' };
+        if (isCaptcha) return { status: 'Waiting for User', tone: 'warning', icon: '⚠️' };
+        return { status: 'Pending', tone: 'neutral', icon: '4' };
+      case 5:
+        if (isCompleted) return { status: 'Completed', tone: 'success', icon: '✓' };
+        if (resumingPhase === 'PAYMENT_SANDBOX') return { status: 'In Progress', tone: 'info', icon: '⏳' };
+        return { status: 'Pending', tone: 'neutral', icon: '5' };
+      case 6:
+        if (isCompleted) return { status: 'Completed', tone: 'success', icon: '✓' };
+        if (resumingPhase === 'PAYMENT_SANDBOX') return { status: 'In Progress', tone: 'info', icon: '⏳' };
+        return { status: 'Pending', tone: 'neutral', icon: '6' };
+      case 7:
+        if (isCompleted) return { status: 'Completed', tone: 'success', icon: '✓' };
+        return { status: 'Pending', tone: 'neutral', icon: '7' };
+      default:
+        return { status: 'Pending', tone: 'neutral', icon: '•' };
     }
   };
 
@@ -212,7 +289,7 @@ export default function UserInterventionModal({
         className="card"
         style={{
           width: '100%',
-          maxWidth: '620px',
+          maxWidth: '680px',
           background: '#FFFFFF',
           borderRadius: '16px',
           boxShadow: '0 20px 40px rgba(110, 20, 35, 0.25)',
@@ -223,7 +300,7 @@ export default function UserInterventionModal({
           animation: 'fadeIn 0.2s ease-out',
         }}
       >
-        {/* Phase 5: Clean Pilgrimage Booking Progress Indicator */}
+        {/* Pilgrimage Booking Progress Indicator */}
         <div style={{ marginBottom: '18px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--burgundy, #6E1423)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -236,41 +313,76 @@ export default function UserInterventionModal({
             )}
           </div>
 
-          {/* Synchronized 6-Stage Visual Stepper */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#F8FAFC', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', overflowX: 'auto' }}>
+          {/* Synchronized 7-Stage Visual Stepper */}
+          <div
+            data-testid="modal-7-stage-stepper"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))',
+              gap: '4px',
+              background: '#F8FAFC',
+              padding: '8px 10px',
+              borderRadius: '8px',
+              border: '1px solid #E2E8F0',
+              overflowX: 'auto',
+            }}
+          >
             {[
-              { num: 1, label: 'Pilgrim Details', done: true },
-              { num: 2, label: 'Darshan Slot', done: true },
-              { num: 3, label: 'Review Details', done: true },
-              { num: 4, label: 'Security Verification', active: !isCompleted && resumingPhase !== 'PAYMENT_SANDBOX', done: isCompleted || resumingPhase === 'PAYMENT_SANDBOX' },
-              { num: 5, label: 'Payment Sandbox', active: resumingPhase === 'PAYMENT_SANDBOX', done: isCompleted },
-              { num: 6, label: 'Confirmation Pass', active: isCompleted, done: isCompleted },
-            ].map((step, idx) => (
-              <React.Fragment key={step.num}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', opacity: step.active || step.done ? 1 : 0.5 }}>
+              { num: 1, label: 'Details' },
+              { num: 2, label: 'Review' },
+              { num: 3, label: 'OTP' },
+              { num: 4, label: 'CAPTCHA' },
+              { num: 5, label: 'Payment' },
+              { num: 6, label: 'Confirm' },
+              { num: 7, label: 'Pass' },
+            ].map((step) => {
+              const info = getModalStageStatus(step.num);
+              const isToneSuccess = info.tone === 'success';
+              const isToneWarning = info.tone === 'warning';
+              const isToneInfo = info.tone === 'info';
+              const isToneDanger = info.tone === 'danger';
+              const bgCircle = isToneSuccess ? '#059669' : (isToneWarning ? '#D97706' : (isToneInfo ? '#2563EB' : (isToneDanger ? '#DC2626' : '#CBD5E1')));
+              const textToneColor = isToneSuccess ? '#166534' : (isToneWarning ? '#92400E' : (isToneInfo ? '#1E40AF' : (isToneDanger ? '#991B1B' : '#64748B')));
+
+              return (
+                <div
+                  key={step.num}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '2px',
+                    padding: '4px 2px',
+                    borderRadius: '6px',
+                    background: isToneWarning ? '#FEF3C7' : (isToneInfo ? '#EFF6FF' : (isToneSuccess ? '#DCFCE7' : '#F1F5F9')),
+                    textAlign: 'center',
+                  }}
+                >
                   <span
                     style={{
-                      width: '20px',
-                      height: '20px',
+                      width: '18px',
+                      height: '18px',
                       borderRadius: '50%',
-                      background: step.done ? '#059669' : (step.active ? '#6E1423' : '#CBD5E1'),
+                      background: bgCircle,
                       color: '#FFF',
-                      fontSize: '0.72rem',
+                      fontSize: '0.68rem',
                       fontWeight: 800,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
-                    {step.done && !step.active ? '✓' : step.num}
+                    {info.icon}
                   </span>
-                  <span style={{ fontSize: '0.74rem', fontWeight: step.active ? 800 : 600, color: step.active ? '#6E1423' : '#475569' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#1E293B', whiteSpace: 'nowrap' }}>
                     {step.label}
                   </span>
+                  <span style={{ fontSize: '0.62rem', fontWeight: 700, color: textToneColor, whiteSpace: 'nowrap' }}>
+                    {info.status}
+                  </span>
                 </div>
-                {idx < 5 && <span style={{ color: '#CBD5E1', fontSize: '0.7rem' }}>➔</span>}
-              </React.Fragment>
-            ))}
+              );
+            })}
           </div>
         </div>
 

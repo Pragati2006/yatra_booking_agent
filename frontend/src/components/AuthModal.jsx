@@ -126,6 +126,7 @@ export default function AuthModal({
     <div
       role="dialog"
       aria-modal="true"
+      data-testid="auth-modal"
       style={{
         position: 'fixed',
         inset: 0,
@@ -215,6 +216,7 @@ export default function AuthModal({
                 </label>
                 <input
                   id="authEmailInput"
+                  data-testid="auth-email-input"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -244,6 +246,7 @@ export default function AuthModal({
 
               <button
                 type="submit"
+                data-testid="auth-send-otp-btn"
                 disabled={loading}
                 className="btn btn-primary"
                 style={{
@@ -290,6 +293,7 @@ export default function AuthModal({
                 </label>
                 <input
                   id="authOtpInput"
+                  data-testid="auth-otp-input"
                   type="text"
                   maxLength={6}
                   value={otpCode}

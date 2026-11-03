@@ -7,7 +7,7 @@ const POPULAR_HUBS = [
 
 export default function TravelSearch({ onSearch, loading = false, initialValues = {} }) {
   const [origin, setOrigin] = useState(initialValues.origin || 'Delhi');
-  const [startDate, setStartDate] = useState(initialValues.startDate || initialValues.start_date || '2026-10-20');
+  const [startDate, setStartDate] = useState(initialValues.startDate || initialValues.start_date || '2026-11-10');
   const [pax, setPax] = useState(initialValues.pax || 2);
   const [mode, setMode] = useState(initialValues.mode || 'any');
   const [category, setCategory] = useState(initialValues.category || 'Normal Darshan');

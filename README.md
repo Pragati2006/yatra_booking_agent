@@ -93,11 +93,15 @@ The repository hosts two decoupled client implementations sharing a unified mult
 
 ## 3. Supported User Workflows
 
-### 1. Planning Mode Choice Screen
-Pilgrims are greeted with a balanced choice screen offering two distinct methods:
-- **Plan with a Form:** A guided, structured 7-step wizard capturing departure city, dates, pilgrim count, transport mode, darshan slot, stay preferences, budget, and sightseeing.
-- **Chat with AI:** A conversational assistant allowing natural phrasing, follow-up queries, and on-the-fly adjustments.
-- **Seamless Mode Switching:** A prominent top switcher bar enables switching between Form and Chat at any point with zero loss of session ID, plan version, destination choices, or itinerary state.
+### 1. Planning Mode Choice Screen & 4-Step Guided Journey
+Pilgrims are greeted with a balanced choice screen offering two distinct planning modes:
+- **Plan with a Form:** A streamlined, 4-step guided wizard:
+  1. **Step 1: Preferences:** Intake form capturing departure city, travel date, pilgrim count, duration, darshan category, transport preference, stay level, and budget.
+  2. **Step 2: Recommended Yatra:** Synthesizes verified transit schedules (e.g. Vande Bharat Express), certified Katra hotels, shrine darshan slots, and day-wise feasibility itineraries.
+  3. **Step 3: Booking Review & RPA:** Displays final booking breakdown and enforces **compulsory passwordless email authentication** before booking. Authenticated devotees initiate Playwright browser automation against the sandboxed local mock portal, passing interactive Human-in-the-Loop OTP and CAPTCHA checkpoints.
+  4. **Step 4: Confirmation & Download Pass:** Genuine final confirmation page displaying the official booking reference (e.g. `VD-RPA-991041`), prominent demo disclaimers, simulated payment status, printable pass view, and zero-dependency PDF pass download.
+- **Chat with AI:** An interactive pilgrimage companion allowing conversational queries, live VIP slot checks, and seamless handoff to personalized booking cards.
+- **Seamless Mode Switching:** Top switcher bar enables toggling between Form and Chat with zero loss of session ID, plan version, or itinerary state.
 
 ### 2. Interactive Jammu & Kashmir Sightseeing Browser
 - **29 Grounded Destinations:** Katra local shrines, trek-route stops, regional hill stations (Patnitop, Sanasar), holy springs (Baba Dhansar), ancient cave shrines (Shiv Khori), and Kashmir excursions.
@@ -113,16 +117,20 @@ Pilgrims are greeted with a balanced choice screen offering two distinct methods
   - Uncatalogued destinations (e.g., *"Eiffel Tower"*) are strictly rejected with an unverified catalogue advisory.
 
 ### 4. Human-in-the-Loop Authorization & Simulated RPA Execution
-- **Two-Stage Confirmation Gate:** Review complete route, hotel, and sightseeing details alongside a clear distinction of verified vs. estimated costs.
-- **Server-Side Authorization:** Checking the authorization box calls `POST /api/yatra/authorize`, recording approval for the active `plan_version` in the SQLite session store.
-- **Automated Mock RPA Demo:** Pilgrims can trigger `POST /api/yatra/rpa` to run a headless Chromium browser instance that fills the simulated checkout form.
-- **Final Confirmation & Yatra Pass:** Issues an official confirmation reference (e.g., `VD26753AC0`), divine blessing message, and Katra RFID counter instructions.
+- **Compulsory Authentication Enforcement:** Guests can freely explore tourism knowledge and generate itineraries, but initiating automated booking strictly requires passwordless email OTP authentication.
+- **Server-Side Authorization & Idempotency:** The backend validates session ownership, authorization flags, and exact plan versions before processing booking operations.
+- **Playwright RPA Mock Booking Sandbox:** Launches a headless Chromium browser instance interacting exclusively with the sandboxed local mock portal (`mock_portal/index.html`).
+- **Interactive HITL Checkpoints:** Automated execution pauses safely at the **OTP Checkpoint** and **CAPTCHA Checkpoint**, prompting the devotee through an interactive modal (`UserInterventionModal`) to authorize continuation.
+- **Controlled Step 4 Transition:** Step 3 remains visible until the backend successfully receives and persists the confirmed booking; a prominent *"Continue to Confirmation"* button guides the devotee to Step 4.
 
-### 5. Optional Passwordless Email Authentication & Saved Trips (Week 9)
-- **Strict Guest-First Invariant:** Core functionality (chat, yatra rules, itinerary generation, mock RPA) remains 100% accessible to unauthenticated guests with zero blocking login walls.
-- **Password-Free Security:** Single-use 6-digit cryptographic OTPs via `secrets.choice`, salted SHA-256 storage (zero plain OTPs on disk), 5-minute expiry, and max 5 failed attempts.
-- **Selective Data Transition:** Active guests can sign in at any time to save in-memory itineraries and chat histories without losing active session context or restarting.
-- **Dual-Storage Resilience:** Primary cloud persistence via MongoDB Atlas (`users`, `saved_itineraries`, `saved_conversations`) with instant local SQLite ACID fallback (`data/auth_store.db`) when remote networks are offline.
+### 5. Passwordless Authentication, PDF Pass & My Account History
+- **Passwordless Security:** Single-use 6-digit cryptographic OTPs via `secrets.choice`, salted SHA-256 storage, 5-minute expiry, and a maximum of 5 failed attempts.
+- **Zero-Dependency PDF Pilgrim Pass:** Client-side (`pdfGenerator.js`) and backend (`utils/pdf_generator.py`) generators emit well-formed standard PDF 1.4 documents with official reference IDs, devotee particulars, and prominent demo disclaimers without heavy third-party PDF dependencies.
+- **My Account & Saved History Integration:**
+  - Authenticated devotees can open `My Account` in the navigation bar to inspect `My Bookings`.
+  - Displays all 14 required particulars: Booking Reference, Status, Devotee Name, Associated Email, Pilgrims Count, Yatra Date, Category, Slot Time, Route/Transit, Hotel, Simulated Total, Sandbox Payment Status, Timestamp, and Demo Warning Banners.
+  - Interactive *"View Details"* modal and pass re-download.
+  - **Multi-Session Persistence:** Bookings are persisted in SQLite (`data/auth_store.db`), surviving browser page reloads and complete logout/re-login cycles.
 
 ### 6. Ethical Boundary, Data Masking & Structured Logging Transparency (Week 10)
 - **Dual-Track Shrine Board Boundary:** Playwright browser automation is strictly confined to Track A (local simulated sandbox `yatra_mock_portal.html`). The live Shrine Board portal (`maavaishnodevi.org`) is protected against automated scraping, bot bookings, and credential harvesting; real bookings are completed manually by pilgrims via official deep-links.
@@ -250,28 +258,36 @@ Triggers headless Chromium form automation in the simulated sandbox.
 
 ## 6. Setup, Installation & Startup Guide
 
+> 💡 **Teammates:** For a complete, dedicated onboarding guide with Windows PowerShell walkthroughs, see [**TEAM_SETUP.md**](TEAM_SETUP.md).
+
 ### Prerequisites
+- **Git:** Git for Windows/macOS/Linux
 - **Python:** Python 3.12 (64-bit)
 - **Node.js:** Node.js v18+ or v20+ with `npm`
 - **Operating System:** Windows, macOS, or Linux
 
-### Step 1: Environment Setup
-1. Clone or open the repository root `yatra-booking-agent`.
+### Step 1: Clone the Repository & Configure Environment
+1. Clone the active branch:
+   ```powershell
+   git clone -b feature/ui-redesign https://github.com/Pragati2006/yatra_booking_agent.git
+   cd yatra_booking_agent
+   ```
 2. Copy `.env.example` to `.env`:
    ```powershell
    copy .env.example .env
    ```
 3. Populate `.env` with your credentials:
    ```dotenv
+   GROQ_API_KEY=your_groq_api_key_here
    MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority
    MONGO_DB_NAME=yatra_booking_agent
-   GROQ_API_KEY=your_groq_api_key_here
    ```
+   *(Note: MongoDB Atlas and SMTP are optional; the application automatically engages local fallbacks if they are omitted).*
 
 ### Step 2: Python Environment & Dependencies
-Activate your virtual environment or install dependencies:
+Create and activate your virtual environment, then install dependencies:
 ```powershell
-# Using the local project venv:
+python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 playwright install chromium
@@ -366,6 +382,8 @@ python -m unittest tests.test_rpa_availability_week5 tests.test_rpa_error_handli
 ---
 
 ### Key Milestone Documentation
+- **Pre-Demo End-to-End Acceptance Report (Final):** [`docs/FINAL_PRE_DEMO_END_TO_END_VERIFICATION_REPORT.md`](docs/FINAL_PRE_DEMO_END_TO_END_VERIFICATION_REPORT.md) — 100% Core Acceptance Criteria Verified (`READY FOR TOMORROW'S DEMO` ✅)
+- **Team Onboarding & Setup Guide:** [`TEAM_SETUP.md`](TEAM_SETUP.md)
 - **Week 5 Documentation:** [`docs/Week5_RPA_Availability_Documentation.md`](docs/Week5_RPA_Availability_Documentation.md)
 - **Week 6 Documentation:** [`docs/Week6_RPA_Error_Handling_Documentation.md`](docs/Week6_RPA_Error_Handling_Documentation.md)
 - **Week 7 Documentation:** [`docs/Week7_Agent_RPA_Integration_Documentation.md`](docs/Week7_Agent_RPA_Integration_Documentation.md)

@@ -12,6 +12,26 @@ const client = axios.create({
   timeout: 45000, // 45s for LLM / tool chains
 });
 
+// Manage session token for cross-origin and cookie-partitioned requests
+const TOKEN_KEY = 'yatra_auth_token';
+let currentToken = typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
+if (currentToken) {
+  client.defaults.headers.common['Authorization'] = `Bearer ${currentToken}`;
+}
+
+export const setAuthToken = (token) => {
+  currentToken = token;
+  if (token) {
+    if (typeof window !== 'undefined') localStorage.setItem(TOKEN_KEY, token);
+    client.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    if (typeof window !== 'undefined') localStorage.removeItem(TOKEN_KEY);
+    delete client.defaults.headers.common['Authorization'];
+  }
+};
+
+export const getAuthToken = () => currentToken;
+
 // Centralized API Functions
 export const sendChat = async (messageData) => {
   const payload = typeof messageData === 'string'
@@ -215,6 +235,9 @@ export const requestOtp = async (email) => {
 
 export const verifyOtp = async (email, otpCode) => {
   const response = await client.post('/api/auth/verify-otp', { email, otp_code: otpCode });
+  if (response.data && response.data.session_token) {
+    setAuthToken(response.data.session_token);
+  }
   return response.data;
 };
 
@@ -224,8 +247,12 @@ export const getAuthMe = async () => {
 };
 
 export const logout = async () => {
-  const response = await client.post('/api/auth/logout');
-  return response.data;
+  try {
+    const response = await client.post('/api/auth/logout');
+    return response.data;
+  } finally {
+    setAuthToken(null);
+  }
 };
 
 export const saveItinerary = async (title, itinerary) => {
@@ -327,5 +354,7 @@ export default {
   transferTrip,
   transferBooking,
   getUserProfile,
+  setAuthToken,
+  getAuthToken,
 };
 

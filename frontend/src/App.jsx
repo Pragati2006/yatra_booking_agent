@@ -6,7 +6,7 @@ import SightseeingBrowser from './components/SightseeingBrowser';
 import AIChat from './components/AIChat';
 import AuthModal from './components/AuthModal';
 import SavedTripsModal from './components/SavedTripsModal';
-import { getAuthMe, logout } from './services/api';
+import { getAuthMe, logout, setAuthToken } from './services/api';
 import './App.css';
 
 export default function App() {
@@ -27,6 +27,8 @@ export default function App() {
       .then((res) => {
         if (isMounted && res.authenticated && res.user) {
           setCurrentUser(res.user);
+        } else if (isMounted && !res.authenticated) {
+          setAuthToken(null);
         }
       })
       .catch(() => {
@@ -40,6 +42,8 @@ export default function App() {
       await logout();
     } catch {
       // Ignore
+    } finally {
+      setAuthToken(null);
     }
     setCurrentUser(null);
     setShowSavedTripsModal(false);
@@ -99,6 +103,8 @@ export default function App() {
           <div style={{ display: activeTab === 'booking' ? 'block' : 'none' }}>
             <YatraBooking
               initialSearchParams={bookingParams}
+              currentUser={currentUser}
+              onRequireAuth={() => setShowAuthModal(true)}
               onReturnHome={() => {
                 setActiveTab('home');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -213,8 +219,9 @@ export default function App() {
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        onAuthSuccess={(user) => {
+        onAuthSuccess={(user, token) => {
           setCurrentUser(user);
+          if (token) setAuthToken(token);
         }}
       />
 

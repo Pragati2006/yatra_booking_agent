@@ -2144,6 +2144,11 @@ def execute_user_controlled_booking_workflow(
             "message": f"User-controlled workflow completed successfully. Booking ID: {cp_data.get('booking_id', 'VD-CONFIRMED')}",
             "logs": logs,
             "is_idempotent_replay": True,
+            "user_name": cp_data.get("user_name"),
+            "pax_count": cp_data.get("pax_count"),
+            "transport_text": cp_data.get("transport_text"),
+            "slot_text": cp_data.get("slot_text"),
+            "total_price": cp_data.get("total_price"),
         }
 
     if wf["state"] not in session_store.RESUMABLE_STATES:
@@ -2306,14 +2311,14 @@ def execute_user_controlled_booking_workflow(
                 except Exception:
                     pass
 
-                # Update workflow state in SQLite
+                # Update workflow state in SQLite while preserving initiation parameters
                 session_store.update_user_workflow(
                     workflow_id=workflow_id,
                     session_id=session_id,
                     state=session_store.WORKFLOW_STATE_USER_ACTION_COMPLETED,
                     step="booking_confirmed",
                     pending_action="NONE",
-                    checkpoint_data={"booking_id": booking_id, "confirmation_screenshot": conf_ss_path},
+                    checkpoint_data=dict(cp_data, booking_id=booking_id, confirmation_screenshot=conf_ss_path),
                     db_path=db_path,
                 )
 
@@ -2326,6 +2331,11 @@ def execute_user_controlled_booking_workflow(
                     "screenshot_path": conf_ss_path,
                     "message": f"User-controlled workflow completed successfully. Booking ID: {booking_id}",
                     "logs": logs,
+                    "user_name": cp_data.get("user_name", user_name),
+                    "pax_count": cp_data.get("pax_count", pax_count),
+                    "transport_text": cp_data.get("transport_text", transport_text),
+                    "slot_text": cp_data.get("slot_text", slot_text),
+                    "total_price": cp_data.get("total_price", total_price),
                 }
             except Exception as exc:
                 logs.append(f"Browser continuation error: {str(exc)}")
@@ -2340,6 +2350,11 @@ def execute_user_controlled_booking_workflow(
                         "screenshot_path": conf_ss_path,
                         "message": f"User-controlled workflow completed successfully. Booking ID: {booking_id}",
                         "logs": logs,
+                        "user_name": cp_data.get("user_name", user_name),
+                        "pax_count": cp_data.get("pax_count", pax_count),
+                        "transport_text": cp_data.get("transport_text", transport_text),
+                        "slot_text": cp_data.get("slot_text", slot_text),
+                        "total_price": cp_data.get("total_price", total_price),
                     }
                 handover = create_handover_result(
                     error=exc,

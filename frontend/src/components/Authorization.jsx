@@ -1,19 +1,120 @@
 import React, { useState } from 'react';
-import { runRPA, authorizePlan, startRPAWorkflow } from '../services/api';
+import { authorizePlan, startRPAWorkflow } from '../services/api';
 import UserInterventionModal from './UserInterventionModal';
+
+const WORKFLOW_STAGES = [
+  { id: 1, name: 'Booking Details', key: 'DETAILS' },
+  { id: 2, name: 'Booking Review', key: 'REVIEW' },
+  { id: 3, name: 'OTP Verification', key: 'OTP' },
+  { id: 4, name: 'CAPTCHA Verification', key: 'CAPTCHA' },
+  { id: 5, name: 'Simulated Payment', key: 'PAYMENT' },
+  { id: 6, name: 'Booking Confirmation', key: 'CONFIRMATION' },
+  { id: 7, name: 'Demo Pilgrim Pass', key: 'PASS' },
+];
+
+const TONE_STYLES = {
+  success: { bg: '#DCFCE7', color: '#166534', border: '#86EFAC', circleBg: '#059669' },
+  info: { bg: '#EFF6FF', color: '#1E40AF', border: '#93C5FD', circleBg: '#2563EB' },
+  warning: { bg: '#FEF3C7', color: '#92400E', border: '#FCD34D', circleBg: '#D97706' },
+  danger: { bg: '#FEE2E2', color: '#991B1B', border: '#FCA5A5', circleBg: '#DC2626' },
+  neutral: { bg: '#F8FAFC', color: '#64748B', border: '#CBD5E1', circleBg: '#94A3B8' },
+};
+
+function getStageStatus(stageId, workflowPhase, rpaRunning, rpaResult, rpaError) {
+  const isCompleted = workflowPhase === 'COMPLETED' && !!rpaResult;
+  const isExpired = workflowPhase === 'EXPIRED';
+  const isFailed = workflowPhase === 'FAILED' || (!!rpaError && !isCompleted);
+
+  switch (stageId) {
+    case 1: // Booking Details
+      return { status: 'Completed', tone: 'success', icon: '✓' };
+
+    case 2: // Booking Review
+      if (workflowPhase === 'IDLE' && !isCompleted) {
+        return { status: 'In Progress', tone: 'info', icon: '⏳' };
+      }
+      return { status: 'Completed', tone: 'success', icon: '✓' };
+
+    case 3: // OTP Verification
+      if (isCompleted || ['CAPTCHA_REQUIRED', 'PAYMENT_SIMULATING'].includes(workflowPhase)) {
+        return { status: 'Verified', tone: 'success', icon: '✓' };
+      }
+      if (isExpired && workflowPhase === 'OTP_REQUIRED') {
+        return { status: 'Failed / Expired', tone: 'danger', icon: '✕' };
+      }
+      if (isFailed && workflowPhase === 'OTP_REQUIRED') {
+        return { status: 'Failed / Expired', tone: 'danger', icon: '✕' };
+      }
+      if (workflowPhase === 'OTP_REQUIRED') {
+        return { status: 'Waiting for User', tone: 'warning', icon: '⚠️' };
+      }
+      if (workflowPhase === 'INITIATING' || (workflowPhase === 'OTP_REQUIRED' && rpaRunning)) {
+        return { status: 'In Progress', tone: 'info', icon: '⏳' };
+      }
+      return { status: 'Pending', tone: 'neutral', icon: '3' };
+
+    case 4: // CAPTCHA Verification
+      if (isCompleted || workflowPhase === 'PAYMENT_SIMULATING') {
+        return { status: 'Verified', tone: 'success', icon: '✓' };
+      }
+      if (isExpired && workflowPhase === 'CAPTCHA_REQUIRED') {
+        return { status: 'Failed / Expired', tone: 'danger', icon: '✕' };
+      }
+      if (isFailed && workflowPhase === 'CAPTCHA_REQUIRED') {
+        return { status: 'Failed / Expired', tone: 'danger', icon: '✕' };
+      }
+      if (workflowPhase === 'CAPTCHA_REQUIRED') {
+        return { status: 'Waiting for User', tone: 'warning', icon: '⚠️' };
+      }
+      return { status: 'Pending', tone: 'neutral', icon: '4' };
+
+    case 5: // Simulated Payment
+      if (isCompleted) {
+        return { status: 'Completed', tone: 'success', icon: '✓' };
+      }
+      if (workflowPhase === 'PAYMENT_SIMULATING') {
+        return { status: 'In Progress', tone: 'info', icon: '⏳' };
+      }
+      if (isFailed && workflowPhase === 'PAYMENT_SIMULATING') {
+        return { status: 'Failed / Expired', tone: 'danger', icon: '✕' };
+      }
+      return { status: 'Pending', tone: 'neutral', icon: '5' };
+
+    case 6: // Booking Confirmation
+      if (isCompleted) {
+        return { status: 'Completed', tone: 'success', icon: '✓' };
+      }
+      if (workflowPhase === 'PAYMENT_SIMULATING') {
+        return { status: 'In Progress', tone: 'info', icon: '⏳' };
+      }
+      return { status: 'Pending', tone: 'neutral', icon: '6' };
+
+    case 7: // Demo Pilgrim Pass
+      if (isCompleted) {
+        return { status: 'Completed', tone: 'success', icon: '✓' };
+      }
+      return { status: 'Pending', tone: 'neutral', icon: '7' };
+
+    default:
+      return { status: 'Pending', tone: 'neutral', icon: '•' };
+  }
+}
 
 export default function Authorization({ 
   bookingSummary, 
-  onConfirmBooking, 
+  onConfirmBooking: _onConfirmBooking, 
   onBack, 
   onNavigateToStep,
-  confirming = false 
+  onNavigateToConfirmation,
+  currentUser = null,
+  onRequireAuth = null,
+  confirming: _confirming = false 
 }) {
-  const [authorized, setAuthorized] = useState(false);
   const [rpaRunning, setRpaRunning] = useState(false);
   const [rpaResult, setRpaResult] = useState(null);
   const [rpaError, setRpaError] = useState(null);
   const [activeWorkflow, setActiveWorkflow] = useState(null);
+  const [workflowPhase, setWorkflowPhase] = useState('IDLE'); // 'IDLE' | 'INITIATING' | 'OTP_REQUIRED' | 'CAPTCHA_REQUIRED' | 'PAYMENT_SIMULATING' | 'COMPLETED' | 'FAILED' | 'EXPIRED'
   const [showPreferenceOptions, setShowPreferenceOptions] = useState(false);
   const [reviewAccepted, setReviewAccepted] = useState(false);
 
@@ -72,61 +173,23 @@ export default function Authorization({
   const withinBudget = targetBudget ? grandTotal <= targetBudget : null;
   const remainingBudget = targetBudget ? targetBudget - grandTotal : null;
 
-  const handleToggleAuthorize = async (e) => {
-    const checked = e.target.checked;
-    setAuthorized(checked);
-    if (checked && sessionId) {
-      try {
-        await authorizePlan({
-          session_id: sessionId,
-          plan_version: planVersion,
-        });
-      } catch (err) {
-        console.error('Failed to record server-side authorization:', err);
+  const handleStartUnifiedBooking = async () => {
+    if (rpaRunning) return;
+    
+    // Compulsory Authentication Check (Part 2)
+    if (!currentUser) {
+      if (onRequireAuth) {
+        onRequireAuth();
       }
+      return;
     }
-  };
 
-  const handleRunRpaDemo = async () => {
-    setRpaRunning(true);
+    // Clear previous receipt and error state to guarantee a fresh, isolated run
+    setRpaResult(null);
     setRpaError(null);
-    try {
-      if (sessionId) {
-        await authorizePlan({
-          session_id: sessionId,
-          plan_version: planVersion,
-        });
-      }
-
-      const data = await runRPA({
-        user_name: 'Guest-User',
-        pax_count: pax,
-        transport_text: `${tr.mode || 'train'} from ${origin}`,
-        slot_text: slot.category || 'Normal Darshan',
-        total_price: grandTotal,
-        headless: true,
-        session_id: sessionId || null,
-        plan_version: planVersion,
-        human_authorized: true,
-      });
-
-      if (data.status === 'success' && data.rpa) {
-        setRpaResult(data.rpa);
-        setAuthorized(true); // Auto-enable authorization upon successful RPA demo
-      } else {
-        setRpaError(data.message || 'RPA automation returned non-success status.');
-      }
-    } catch (err) {
-      console.error('RPA Error:', err);
-      setRpaError('Failed to execute Playwright RPA. Please check backend logs.');
-    } finally {
-      setRpaRunning(false);
-    }
-  };
-
-  const handleRunUserControlledWorkflow = async (mode) => {
+    setWorkflowPhase('INITIATING');
     setRpaRunning(true);
-    setRpaError(null);
+
     try {
       if (sessionId) {
         await authorizePlan({
@@ -138,33 +201,55 @@ export default function Authorization({
       const effectiveSessionId = sessionId || `session-${Date.now()}`;
       const data = await startRPAWorkflow({
         session_id: effectiveSessionId,
-        user_name: 'Guest-User',
+        user_name: currentUser?.email || currentUser?.name || 'Pilgrim Devotee',
         pax_count: pax,
         transport_text: `${tr.mode || 'train'} from ${origin}`,
         slot_text: slot.category || 'Normal Darshan',
         total_price: grandTotal,
-        checkpoint_mode: mode,
+        checkpoint_mode: 'SEQUENTIAL',
         headless: true,
         plan_version: planVersion,
         human_authorized: true,
       });
 
       if (data.status === 'PAUSED') {
+        const nextState = data.state || 'OTP_REQUIRED';
+        setWorkflowPhase(nextState);
         setActiveWorkflow({
           ...data,
-          checkpoint_mode: mode,
+          checkpoint_mode: 'SEQUENTIAL',
         });
       } else if (data.status === 'SUCCESS' || data.status === 'success') {
+        setWorkflowPhase('COMPLETED');
         setRpaResult(data);
-        setAuthorized(true);
       } else {
+        setWorkflowPhase('FAILED');
         setRpaError(data.message || 'Workflow returned non-success status.');
       }
     } catch (err) {
-      console.error('Workflow Initiation Error:', err);
-      setRpaError('Failed to execute user-controlled workflow. Please check backend logs.');
+      console.error('Unified RPA Initiation Error:', err);
+      setWorkflowPhase('FAILED');
+      setRpaError(err.response?.data?.detail || err.message || 'Failed to start unified RPA booking workflow.');
     } finally {
       setRpaRunning(false);
+    }
+  };
+
+  const handleWorkflowProgress = (progress) => {
+    if (!progress) return;
+    if (progress.phase) {
+      setWorkflowPhase(progress.phase);
+    } else if (progress.state) {
+      setWorkflowPhase(progress.state);
+    }
+    if (progress.result) {
+      setRpaResult(progress.result);
+      setRpaError(null);
+    }
+    if (progress.error) {
+      setRpaError(progress.error);
+    } else if (progress.phase === 'COMPLETED' || progress.state === 'USER_ACTION_COMPLETED' || progress.phase === 'CAPTCHA_REQUIRED' || progress.state === 'CAPTCHA_REQUIRED') {
+      setRpaError(null);
     }
   };
 
@@ -178,41 +263,84 @@ export default function Authorization({
 
   return (
     <div>
-      {/* Synchronized 6-Stage Booking Progress Stepper */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#FFFDF9', padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--gold-border)', marginBottom: '1.25rem', overflowX: 'auto' }}>
-        {[
-          { num: 1, label: 'Pilgrim Details', done: true },
-          { num: 2, label: 'Darshan Slot', done: true },
-          { num: 3, label: 'Review Details', done: true },
-          { num: 4, label: 'Security Verification', done: authorized || !!rpaResult },
-          { num: 5, label: 'Payment Sandbox', active: authorized && !rpaResult, done: !!rpaResult },
-          { num: 6, label: 'Confirmation Pass', active: !!rpaResult, done: !!rpaResult },
-        ].map((step, idx) => (
-          <React.Fragment key={step.num}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap', opacity: step.active || step.done ? 1 : 0.5 }}>
-              <span
+      {/* Synchronized 7-Stage Booking Progress Stepper */}
+      <div
+        data-testid="rpa-7-stage-stepper"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+          gap: '8px',
+          background: '#FFFDF9',
+          padding: '12px 14px',
+          borderRadius: '12px',
+          border: '1.5px solid var(--gold-border, #E8C874)',
+          marginBottom: '1.5rem',
+        }}
+      >
+        {WORKFLOW_STAGES.map((step) => {
+          const info = getStageStatus(step.id, workflowPhase, rpaRunning, rpaResult, rpaError);
+          const toneStyle = TONE_STYLES[info.tone] || TONE_STYLES.neutral;
+          return (
+            <div
+              key={step.id}
+              data-testid={`stage-${step.id}-box`}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+                padding: '8px 10px',
+                borderRadius: '8px',
+                background: toneStyle.bg,
+                border: `1px solid ${toneStyle.border}`,
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    background: toneStyle.circleBg,
+                    color: '#FFF',
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {info.icon}
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    color: '#1E293B',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {step.name}
+                </span>
+              </div>
+              <div
+                data-testid={`stage-${step.id}-status`}
                 style={{
-                  width: '22px',
-                  height: '22px',
-                  borderRadius: '50%',
-                  background: step.done ? '#059669' : (step.active ? 'var(--burgundy)' : '#CBD5E1'),
-                  color: '#FFF',
-                  fontSize: '0.74rem',
-                  fontWeight: 800,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  color: toneStyle.color,
+                  letterSpacing: '0.2px',
+                  paddingLeft: '26px',
                 }}
               >
-                {step.done && !step.active ? '✓' : step.num}
-              </span>
-              <span style={{ fontSize: '0.78rem', fontWeight: step.active ? 800 : 600, color: step.active ? 'var(--burgundy)' : '#475569' }}>
-                {step.label}
-              </span>
+                {info.status}
+              </div>
             </div>
-            {idx < 5 && <span style={{ color: '#CBD5E1', fontSize: '0.7rem' }}>➔</span>}
-          </React.Fragment>
-        ))}
+          );
+        })}
       </div>
 
       {/* Heading */}
@@ -499,139 +627,213 @@ export default function Authorization({
             </div>
           </div>
 
-          {/* Human Confirmation Gate */}
-          <div className="card" style={{ border: '2px solid var(--gold-border)', background: '#FFFDF9' }}>
-            <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--burgundy)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>⚠️</span> Human Confirmation Gate
-            </div>
-            <div style={{ fontSize: '0.84rem', color: 'var(--text-dark)', lineHeight: 1.5, marginBottom: '14px' }}>
-              In accordance with ethical AI and security protocols, booking execution requires your explicit authorization for <b>Plan Revision #{planVersion}</b>. No automated action is finalized without human consent.
-            </div>
-
-            <label style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '10px',
-              padding: '10px 14px',
-              background: '#FFFFFF',
-              border: authorized ? '2px solid var(--burgundy)' : '1px solid var(--gold-border)',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              marginBottom: '10px',
-            }}>
-              <input
-                type="checkbox"
-                checked={authorized}
-                onChange={handleToggleAuthorize}
-                style={{ width: '18px', height: '18px', marginTop: '2px', accentColor: 'var(--burgundy)' }}
-              />
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--burgundy)' }}>
-                I hereby authorize the Yatra Agent to confirm my booking details and issue registration credentials.
+          {/* UNIFIED RPA YATRA BOOKING CARD */}
+          <div className="card" style={{ background: '#FFFFFF', border: '1.5px solid var(--gold-border, #E8C874)', borderRadius: '12px', padding: '18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--burgundy)' }}>
+                🛕 Unified Yatra Booking with Playwright RPA
               </div>
-            </label>
-          </div>
-
-          {/* RPA Automation Demonstration Card */}
-          <div className="card" style={{ background: '#FFFFFF' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '0.98rem', color: 'var(--burgundy)' }}>
-                🤖 Playwright Browser RPA Demonstration
-              </div>
-              <span className="pill pill-gold" style={{ fontSize: '0.7rem' }}>
-                Headless Automation
+              <span className="badge" style={{ background: '#FEF3C7', color: '#92400E', fontWeight: 800, fontSize: '0.72rem', border: '1px solid #FCD34D' }}>
+                LOCAL MOCK PORTAL DEMO
               </span>
             </div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
-              Demonstrate the automated verification process by triggering the backend Playwright agent in simulated sandbox mode.
+
+            <div style={{ fontSize: '0.84rem', color: 'var(--text-dark)', lineHeight: 1.5, marginBottom: '14px' }}>
+              Initiate a single, continuous, human-supervised Playwright RPA booking experience. The browser agent navigates the local mock booking portal, pre-fills your selected transport and Darshan slot, and pauses exclusively at required human checkpoints (OTP & CAPTCHA).
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button
-                onClick={handleRunRpaDemo}
-                disabled={rpaRunning}
-                className="btn btn-secondary"
-                style={{ width: '100%', padding: '0.55rem', fontSize: '0.82rem' }}
-              >
-                {rpaRunning ? '⏳ Executing Playwright Browser Agent...' : '⚡ Run Standard Playwright RPA Demo'}
-              </button>
+            {/* Safety & Compliance Notice */}
+            <div style={{ background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#475569', marginBottom: '14px', lineHeight: 1.45 }}>
+              🛡️ <b>Dual-Track Safety Architecture:</b> Automation operates strictly within our local sandbox. Real pilgrimage registrations on official Shrine Board portals (<i>maavaishnodevi.org</i>) require manual booking. Simulated payment is processed in sandbox mode (₹0 live charge).
+            </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => handleRunUserControlledWorkflow('OTP')}
-                  disabled={rpaRunning}
-                  className="btn btn-outline"
-                  style={{ padding: '0.55rem', fontSize: '0.8rem', color: '#6E1423', borderColor: '#E8C874' }}
-                >
-                  🔐 Test OTP Flow
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRunUserControlledWorkflow('CAPTCHA')}
-                  disabled={rpaRunning}
-                  className="btn btn-outline"
-                  style={{ padding: '0.55rem', fontSize: '0.8rem', color: '#1E40AF', borderColor: '#BFDBFE' }}
-                >
-                  🛡️ Test CAPTCHA Flow
-                </button>
+            {/* Authentication Guard Status Badge */}
+            {!currentUser && (
+              <div
+                data-testid="auth-required-banner"
+                style={{
+                  background: '#FEF3C7',
+                  border: '1.5px solid #F59E0B',
+                  borderRadius: '10px',
+                  padding: '10px 14px',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '0.82rem',
+                  color: '#92400E',
+                }}
+              >
+                <span style={{ fontSize: '1.1rem' }}>🔒</span>
+                <div>
+                  <b>Authentication Required to Book:</b> Guest exploration is enabled. Clicking will prompt a quick email OTP verification before initiating RPA.
+                </div>
               </div>
-
-              <button
-                type="button"
-                onClick={() => handleRunUserControlledWorkflow('SEQUENTIAL')}
-                disabled={rpaRunning}
-                className="btn btn-outline"
-                style={{ width: '100%', marginTop: '8px', padding: '0.55rem', fontSize: '0.8rem', color: '#047857', borderColor: '#86EFAC', background: '#F0FDF4' }}
+            )}
+            {currentUser && (
+              <div
+                data-testid="auth-active-banner"
+                style={{
+                  background: '#F0FDF4',
+                  border: '1.5px solid #86EFAC',
+                  borderRadius: '10px',
+                  padding: '8px 12px',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '0.82rem',
+                  color: '#166534',
+                }}
               >
-                🔄 Test Complete Sequential Flow (OTP ➔ CAPTCHA ➔ Payment ➔ Pass)
-              </button>
-            </div>
-
-            {/* RPA Results / Receipt */}
-            {rpaResult && (
-              <div style={{
-                marginTop: '12px',
-                background: '#F0FDF4',
-                border: '1.5px solid #86EFAC',
-                borderRadius: '12px',
-                padding: '12px 14px',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', borderBottom: '1px dashed #86EFAC', paddingBottom: '6px' }}>
-                  <div style={{ fontWeight: 800, color: '#166534', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>✓</span> Simulated Yatra Booking Confirmation
-                  </div>
-                  <span className="badge" style={{ background: '#DCFCE7', color: '#166534', fontWeight: 800, fontSize: '0.7rem', border: '1px solid #86EFAC' }}>
-                    LOCAL MOCK PORTAL / DEMO
-                  </span>
+                <span>✓</span>
+                <div>
+                  Signed in as <b>{currentUser.email}</b>. Ready to execute Playwright RPA.
                 </div>
-                <div style={{ color: '#166534', fontSize: '0.95rem' }}>
-                  Demo Pilgrim Pass: <strong style={{ fontFamily: 'monospace' }}>{rpaResult.booking_id}</strong>
-                </div>
-                <div style={{ color: '#374151', fontSize: '0.78rem', marginTop: '3px' }}>
-                  Receipt: <strong>Demo Pilgrim Pass (Mock)</strong> · Pax: {rpaResult.pax_count || pax} · Total: ₹{(rpaResult.total_price || grandTotal).toLocaleString('en-IN')}
-                </div>
-                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => window.print()}
-                    className="btn btn-outline"
-                    style={{ fontSize: '0.74rem', padding: '4px 10px', borderColor: '#86EFAC', color: '#166534' }}
-                  >
-                    🖨️ Print Demo Pass
-                  </button>
-                </div>
-                {rpaResult.details && (
-                  <details style={{ marginTop: '6px', fontSize: '0.72rem', color: '#6B7280' }}>
-                    <summary style={{ cursor: 'pointer', fontWeight: 600 }}>⚙️ View Diagnostics</summary>
-                    <div style={{ marginTop: '2px', fontStyle: 'italic' }}>{rpaResult.details}</div>
-                  </details>
-                )}
               </div>
             )}
 
-            {rpaError && (
-              <div style={{ marginTop: '10px', background: '#FDF2F2', border: '1px solid #F5B7B1', padding: '8px 12px', borderRadius: '8px', color: '#922B21', fontSize: '0.78rem' }}>
-                {rpaError}
+            {/* PRIMARY SINGLE CTA BUTTON */}
+            {(!rpaResult || workflowPhase !== 'COMPLETED') && (
+              <button
+                type="button"
+                onClick={handleStartUnifiedBooking}
+                disabled={rpaRunning}
+                className="btn btn-primary"
+                data-testid="start-yatra-rpa-btn"
+                style={{
+                  width: '100%',
+                  padding: '0.9rem 1.4rem',
+                  fontSize: '1rem',
+                  fontWeight: 800,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  background: 'linear-gradient(135deg, var(--burgundy, #6E1423), #8B1E3F)',
+                  boxShadow: '0 4px 14px rgba(110, 20, 35, 0.25)',
+                  cursor: rpaRunning ? 'not-allowed' : 'pointer',
+                  borderRadius: '10px',
+                }}
+              >
+                {rpaRunning ? (
+                  <>⏳ Executing Continuous Playwright RPA...</>
+                ) : (
+                  <>🛕 Start Yatra Booking with RPA ➔</>
+                )}
+              </button>
+            )}
+
+            {/* Paused Checkpoint Notice if modal is closed */}
+            {activeWorkflow && workflowPhase !== 'COMPLETED' && !rpaResult && (
+              <div style={{ marginTop: '12px', background: '#FFFBEB', border: '1.5px solid #FCD34D', borderRadius: '10px', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontWeight: 800, color: '#92400E', fontSize: '0.86rem' }}>
+                    ⚠️ Paused at Security Checkpoint: {workflowPhase === 'OTP_REQUIRED' ? 'OTP Verification Required' : 'CAPTCHA Challenge Required'}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#B45309', marginTop: '2px' }}>
+                    Please enter your mock verification code to automatically resume the booking.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveWorkflow({ ...activeWorkflow })}
+                  className="btn btn-gold"
+                  style={{ fontSize: '0.8rem', padding: '6px 14px', fontWeight: 700 }}
+                >
+                  Enter Verification Code ➔
+                </button>
+              </div>
+            )}
+
+            {/* Error Display */}
+            {rpaError && workflowPhase !== 'COMPLETED' && (
+              <div style={{ marginTop: '12px', background: '#FDF2F2', border: '1.5px solid #FCA5A5', padding: '10px 14px', borderRadius: '10px', color: '#991B1B', fontSize: '0.82rem' }}>
+                <strong>Booking Error:</strong> {rpaError}
+                <div style={{ marginTop: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={handleStartUnifiedBooking}
+                    className="btn btn-outline"
+                    style={{ fontSize: '0.76rem', padding: '4px 10px', borderColor: '#FCA5A5', color: '#991B1B' }}
+                  >
+                    🔄 Retry Fresh Booking
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Confirmed Demo Pilgrim Pass (Stage 7) */}
+            {rpaResult && workflowPhase === 'COMPLETED' && (
+              <div
+                data-testid="demo-pilgrim-pass-card"
+                style={{
+                  marginTop: '14px',
+                  background: '#F0FDF4',
+                  border: '2px solid #86EFAC',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  boxShadow: '0 4px 16px rgba(5, 150, 105, 0.12)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px dashed #86EFAC', paddingBottom: '10px', marginBottom: '12px', flexWrap: 'wrap', gap: '6px' }}>
+                  <div>
+                    <span className="badge" style={{ background: '#DCFCE7', color: '#166534', fontWeight: 800, fontSize: '0.72rem', border: '1px solid #86EFAC' }}>
+                      LOCAL MOCK PORTAL / DEMO
+                    </span>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#166534', marginTop: '4px' }}>
+                      Simulated Yatra Booking Confirmation
+                    </div>
+                    <div style={{ fontSize: '0.86rem', color: '#15803D', fontWeight: 700, marginTop: '2px' }}>
+                      Demo Pilgrim Pass: <strong style={{ fontFamily: 'monospace', fontSize: '1.05rem', color: '#166534' }}>{rpaResult.booking_id}</strong>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="btn btn-outline"
+                      data-testid="print-demo-pass-btn"
+                      style={{ fontSize: '0.78rem', padding: '6px 12px', borderColor: '#86EFAC', color: '#166534', fontWeight: 700 }}
+                    >
+                      🖨️ Print Demo Pass
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', fontSize: '0.82rem', color: '#374151' }}>
+                  <div><strong>Pilgrim:</strong> {rpaResult.user_name || currentUser?.email || 'Guest Pilgrim'} ({rpaResult.pax_count || pax} pax)</div>
+                  <div><strong>Darshan Slot:</strong> {slot.category || 'Normal Darshan'} ({slot.slot_time || 'Morning Slot'})</div>
+                  <div><strong>Transport:</strong> {operator} ({mode}) from {origin}</div>
+                  <div><strong>Accommodation:</strong> {hotel ? hotel.name : 'Self-arranged Katra stay'}</div>
+                  <div><strong>Simulated Payment:</strong> ₹{(rpaResult.total_price || grandTotal).toLocaleString('en-IN')} <span style={{ color: '#059669', fontWeight: 700 }}>(Sandbox ₹0 Live Charge)</span></div>
+                  <div><strong>Security Status:</strong> <span style={{ color: '#166534', fontWeight: 700 }}>OTP Verified ✓ & CAPTCHA Solved ✓</span></div>
+                </div>
+
+                <div style={{ fontSize: '0.82rem', color: '#047857', marginTop: '12px', fontStyle: 'italic', textAlign: 'center', background: '#DCFCE7', padding: '8px', borderRadius: '8px', border: '1px solid #BBF7D0' }}>
+                  🙏 Jai Mata Di! May Maa Vaishno Devi bless you and your family with peace and happiness.
+                </div>
+
+                <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleStartUnifiedBooking}
+                    className="btn btn-outline"
+                    data-testid="start-fresh-booking-btn"
+                    style={{ fontSize: '0.82rem', padding: '6px 14px', fontWeight: 700 }}
+                  >
+                    🔄 Start Fresh Booking with RPA
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onNavigateToConfirmation && onNavigateToConfirmation(rpaResult)}
+                    className="btn btn-primary"
+                    data-testid="continue-to-confirmation-card-btn"
+                    style={{ fontSize: '0.85rem', padding: '6px 16px', fontWeight: 800 }}
+                  >
+                    Continue to Confirmation ➔
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -644,7 +846,7 @@ export default function Authorization({
           ← Back to Itinerary
         </button>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button
             onClick={() => handleNavigateStep(2)}
             className="btn btn-outline"
@@ -653,14 +855,44 @@ export default function Authorization({
             Change Transport / Hotel
           </button>
 
-          <button
-            onClick={() => onConfirmBooking(authorized)}
-            disabled={!authorized || confirming}
-            className="btn btn-primary"
-            style={{ padding: '0.8rem 2.5rem', fontSize: '0.94rem' }}
-          >
-            {confirming ? 'Confirming Yatra Booking...' : 'Authorize & Confirm Booking ➔'}
-          </button>
+          {rpaResult && workflowPhase === 'COMPLETED' ? (
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="btn btn-outline"
+                style={{ padding: '0.75rem 1.4rem', fontSize: '0.9rem' }}
+              >
+                🖨️ Print Demo Pass
+              </button>
+              <button
+                type="button"
+                data-testid="continue-to-confirmation-btn"
+                onClick={() => onNavigateToConfirmation && onNavigateToConfirmation(rpaResult)}
+                className="btn btn-primary"
+                style={{
+                  padding: '0.75rem 1.8rem',
+                  fontSize: '0.92rem',
+                  fontWeight: 800,
+                  backgroundColor: 'var(--burgundy, #58111A)',
+                  borderColor: 'var(--gold-primary, #C5A059)',
+                }}
+              >
+                Continue to Confirmation ➔
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              data-testid="bottom-start-yatra-rpa-btn"
+              onClick={handleStartUnifiedBooking}
+              disabled={rpaRunning}
+              className="btn btn-primary"
+              style={{ padding: '0.75rem 1.8rem', fontSize: '0.9rem' }}
+            >
+              {rpaRunning ? '⏳ Booking in Progress...' : '🛕 Start Yatra Booking with RPA ➔'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -671,12 +903,14 @@ export default function Authorization({
           sessionId={sessionId || activeWorkflow.session_id}
           isOpen={!!activeWorkflow}
           onClose={() => setActiveWorkflow(null)}
+          onWorkflowProgress={handleWorkflowProgress}
           onWorkflowComplete={(result) => {
             setRpaResult(result);
-            setAuthorized(true);
+            setWorkflowPhase('COMPLETED');
             setActiveWorkflow(null);
           }}
           onWorkflowCancelled={() => {
+            setWorkflowPhase('IDLE');
             setActiveWorkflow(null);
           }}
         />

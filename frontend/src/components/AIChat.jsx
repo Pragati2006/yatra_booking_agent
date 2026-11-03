@@ -111,11 +111,42 @@ export default function AIChat({
   };
 
   const formatInline = (text) => {
+    if (!text) return '';
     return text
       .replace(/`([^`]+)`/g, '<code style="background: rgba(184, 134, 11, 0.1); padding: 2px 5px; border-radius: 4px; font-family: monospace; font-size: 0.88em; color: var(--burgundy);">$1</code>')
       .replace(/\*\*([^*]+)\*\*/g, '<strong style="color: var(--burgundy); font-weight: 700;">$1</strong>')
       .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-      .replace(/_([^_]+)_/g, '<em>$1</em>');
+      .replace(/_([^_]+)_/g, '<em>$1</em>')
+      .replace(/\[([^\]]+)\]\(((?:https?:\/\/|\/|#)[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color: var(--gold-primary); text-decoration: underline; font-weight: 600;">$1</a>');
+  };
+
+  const isTableDelimiterRow = (str) => {
+    if (!str || !str.includes('-')) return false;
+    const trimmed = str.trim();
+    if (!trimmed.includes('|')) return false;
+    const content = trimmed.replace(/^\|/, '').replace(/\|$/, '');
+    const cells = content.split('|');
+    if (cells.length === 0) return false;
+    return cells.every(cell => /^\s*:?-+:?\s*$/.test(cell));
+  };
+
+  const parseRowCells = (str) => {
+    let content = str.trim();
+    if (content.startsWith('|')) content = content.substring(1);
+    if (content.endsWith('|')) content = content.substring(0, content.length - 1);
+    return content.split('|').map(c => c.trim());
+  };
+
+  const getAlignments = (delimiterRow) => {
+    const cells = parseRowCells(delimiterRow);
+    return cells.map(cell => {
+      const trimmed = cell.trim();
+      const startsColon = trimmed.startsWith(':');
+      const endsColon = trimmed.endsWith(':');
+      if (startsColon && endsColon) return 'center';
+      if (endsColon) return 'right';
+      return 'left';
+    });
   };
 
   const formatMarkdown = (rawText) => {
@@ -126,6 +157,8 @@ export default function AIChat({
     let html = '';
     let inUl = false;
     let inOl = false;
+    let inCodeBlock = false;
+    let codeBlockLines = [];
 
     const closeLists = () => {
       if (inUl) {
@@ -142,15 +175,94 @@ export default function AIChat({
       const line = lines[i];
       const trimmed = line.trim();
 
+      // Code blocks: ```
+      if (trimmed.startsWith('```')) {
+        closeLists();
+        if (!inCodeBlock) {
+          inCodeBlock = true;
+          codeBlockLines = [];
+        } else {
+          inCodeBlock = false;
+          html += `<pre style="background: rgba(88, 17, 26, 0.04); border: 1px solid var(--gold-border); border-radius: 8px; padding: 10px 12px; overflow-x: auto; font-family: monospace; font-size: 0.84rem; margin: 8px 0; color: var(--burgundy-dark); line-height: 1.45;"><code>${codeBlockLines.join('\n')}</code></pre>`;
+          codeBlockLines = [];
+        }
+        continue;
+      }
+
+      if (inCodeBlock) {
+        codeBlockLines.push(line);
+        continue;
+      }
+
       if (!trimmed) {
         closeLists();
         continue;
       }
 
-      // Horizontal dividers: --- or ***
-      if (/^---+$/.test(trimmed) || /^\*\*\*+$/.test(trimmed)) {
+      // Horizontal dividers: --- or *** (must not contain pipe)
+      if (!trimmed.includes('|') && (/^---+$/.test(trimmed) || /^\*\*\*+$/.test(trimmed))) {
         closeLists();
         html += '<hr style="border: none; border-top: 1px solid var(--gold-border); margin: 12px 0;" />';
+        continue;
+      }
+
+      // Markdown Table detection: current line has pipe and next line is table delimiter
+      if (trimmed.includes('|') && i + 1 < lines.length && isTableDelimiterRow(lines[i + 1])) {
+        closeLists();
+        const headerCells = parseRowCells(trimmed);
+        const alignments = getAlignments(lines[i + 1]);
+        i += 2; // skip header and delimiter
+
+        const dataRows = [];
+        while (i < lines.length) {
+          const tableLine = lines[i];
+          const trimmedTableLine = tableLine.trim();
+          if (!trimmedTableLine) break;
+          if (!trimmedTableLine.includes('|')) break;
+          if (trimmedTableLine.startsWith('#') || trimmedTableLine.startsWith('```')) break;
+          if (!trimmedTableLine.includes('|') && (/^---+$/.test(trimmedTableLine) || /^\*\*\*+$/.test(trimmedTableLine))) break;
+
+          dataRows.push(parseRowCells(trimmedTableLine));
+          i++;
+        }
+        i--; // adjust for outer loop increment
+
+        const numCols = Math.max(headerCells.length, alignments.length);
+
+        let tableHtml = '<div class="chat-table-wrapper" style="width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 10px 0 12px 0; border: 1px solid var(--gold-border); border-radius: 10px; background: #FFFFFF; box-shadow: 0 2px 6px rgba(88, 17, 26, 0.04);">';
+        tableHtml += '<table class="chat-markdown-table" style="width: 100%; min-width: 480px; border-collapse: collapse; font-size: 0.84rem; text-align: left;">';
+
+        // Header
+        tableHtml += '<thead style="background: var(--bg-subtle, #F8F4EC); border-bottom: 2px solid var(--gold-border);">';
+        tableHtml += '<tr>';
+        for (let c = 0; c < numCols; c++) {
+          const text = headerCells[c] || '';
+          const align = alignments[c] || 'left';
+          const isLastCol = c === numCols - 1;
+          const borderRight = isLastCol ? 'none' : '1px solid rgba(229, 210, 173, 0.4)';
+          tableHtml += `<th style="padding: 9px 12px; font-weight: 700; color: var(--burgundy); text-align: ${align}; white-space: nowrap; font-size: 0.82rem; letter-spacing: 0.01em; border-right: ${borderRight};">${formatInline(text)}</th>`;
+        }
+        tableHtml += '</tr></thead>';
+
+        // Body
+        tableHtml += '<tbody>';
+        dataRows.forEach((row, rowIndex) => {
+          const rowBg = rowIndex % 2 === 0 ? '#FFFFFF' : 'rgba(248, 244, 236, 0.45)';
+          const isLastRow = rowIndex === dataRows.length - 1;
+          const borderBottom = isLastRow ? 'none' : '1px solid var(--border-subtle)';
+          tableHtml += `<tr style="background: ${rowBg}; border-bottom: ${borderBottom}; transition: background 0.15s ease;">`;
+          for (let c = 0; c < numCols; c++) {
+            const text = row[c] || '';
+            const align = alignments[c] || 'left';
+            const isLastCol = c === numCols - 1;
+            const borderRight = isLastCol ? 'none' : '1px solid rgba(235, 225, 208, 0.4)';
+            tableHtml += `<td style="padding: 8px 12px; color: var(--text-dark); text-align: ${align}; font-size: 0.83rem; vertical-align: middle; white-space: nowrap; border-right: ${borderRight};">${formatInline(text)}</td>`;
+          }
+          tableHtml += '</tr>';
+        });
+        tableHtml += '</tbody></table></div>';
+
+        html += tableHtml;
         continue;
       }
 
@@ -212,6 +324,9 @@ export default function AIChat({
     }
 
     closeLists();
+    if (inCodeBlock && codeBlockLines.length > 0) {
+      html += `<pre style="background: rgba(88, 17, 26, 0.04); border: 1px solid var(--gold-border); border-radius: 8px; padding: 10px 12px; overflow-x: auto; font-family: monospace; font-size: 0.84rem; margin: 8px 0; color: var(--burgundy-dark); line-height: 1.45;"><code>${codeBlockLines.join('\n')}</code></pre>`;
+    }
     return html;
   };
 

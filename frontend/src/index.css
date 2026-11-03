@@ -411,3 +411,30 @@ input:focus, select:focus, textarea:focus {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Chat Markdown Table Scrollbar & Responsiveness                             */
+/* -------------------------------------------------------------------------- */
+.chat-table-wrapper {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold-border) var(--bg-subtle);
+}
+
+.chat-table-wrapper::-webkit-scrollbar {
+  height: 6px;
+}
+
+.chat-table-wrapper::-webkit-scrollbar-track {
+  background: var(--bg-subtle, #F8F4EC);
+  border-radius: 4px;
+}
+
+.chat-table-wrapper::-webkit-scrollbar-thumb {
+  background: var(--gold-border, #E5D2AD);
+  border-radius: 4px;
+}
+
+.chat-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-primary, #B8860B);
+}
+
+

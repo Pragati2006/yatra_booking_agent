@@ -7,7 +7,7 @@ A modern, responsive React 19 Single-Page Application (SPA) built with Vite for 
 ## 1. Features & Capabilities
 
 - **Dual Planning Modes:**
-  - **Structured Form Wizard:** A 7-step guided planning workflow capturing departure city, dates, pilgrim count, transit preference, darshan slot timings, accommodation tier, budget limits, and regional excursions.
+  - **Structured Form Wizard:** A 4-step guided planning workflow (Preferences -> Recommended Yatra -> Booking Review & RPA -> Confirmation Pass).
   - **Conversational AI Companion (`AIChat`):** Natural language multi-turn trip consultation with context-aware slot extraction, devotional responses, live package recommendation cards, and one-click transitions to booking review.
   - **Seamless Bidirectional Mode Switcher:** Switch between Form and Chat views at any point with zero loss of session ID, destination selections, or itinerary state.
 - **Jammu & Kashmir Sightseeing Browser:**

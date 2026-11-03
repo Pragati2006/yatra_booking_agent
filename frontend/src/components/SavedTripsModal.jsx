@@ -9,6 +9,7 @@ import {
   transferConversation,
   transferTrip,
 } from '../services/api';
+import { generatePilgrimPassPDF } from '../utils/pdfGenerator';
 
 export default function SavedTripsModal({
   isOpen,
@@ -282,6 +283,32 @@ export default function SavedTripsModal({
                   {bookings.map((b) => {
                     const d = new Date(b.created_at);
                     const dateFormatted = isNaN(d) ? b.created_at : d.toLocaleString();
+                    const originRoute = b.receipt?.origin || 'Delhi';
+                    const routeText = `${originRoute} ➔ Katra (Shri Mata Vaishno Devi Shrine)`;
+                    const emailAccount = user?.email || b.receipt?.email || b.user_id || 'Registered Pilgrim';
+                    const transportDesc = b.transport_info || b.transport_mode || 'Train (Vande Bharat Express)';
+                    const hotelDesc = b.hotel_name || 'Devi Darshan Hotel (Katra)';
+                    const paymentLabel = `${b.payment_status || 'COMPLETED_SANDBOX'} (Sandbox Paid — ₹0 Live Charge)`;
+                    const slotTimeDesc = b.slot_time || 'Morning Slot (06:00)';
+
+                    const handleDownloadCardPDF = () => {
+                      generatePilgrimPassPDF(b, {
+                        option: {
+                          transport: { name: transportDesc, mode: b.transport_mode || 'Train' },
+                          slot: { category: b.category, slot_date: b.slot_date, slot_time: slotTimeDesc }
+                        },
+                        hotel: { name: hotelDesc },
+                        pax: b.pax_count,
+                        origin: originRoute,
+                        total_price: b.total_price,
+                      });
+                    };
+
+                    const handlePrintCardPass = () => {
+                      setSelectedPass(b);
+                      setTimeout(() => window.print(), 300);
+                    };
+
                     return (
                       <div
                         key={b.booking_id}
@@ -289,51 +316,135 @@ export default function SavedTripsModal({
                         style={{
                           border: '1.5px solid #E5D2AD',
                           borderRadius: '12px',
-                          padding: '1rem',
+                          padding: '1.15rem',
                           background: '#FFFDF9',
                           display: 'flex',
                           flexDirection: 'column',
-                          gap: '8px',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+                          gap: '10px',
+                          boxShadow: '0 2px 8px rgba(88, 17, 26, 0.04)',
                         }}
                       >
+                        {/* Demo Disclaimers */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '6px',
+                            background: '#FEF3C7',
+                            border: '1px solid #F59E0B',
+                            borderRadius: '6px',
+                            padding: '4px 10px',
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
+                            color: '#92400E',
+                            letterSpacing: '0.03em',
+                          }}
+                        >
+                          <span>⚠️ LOCAL MOCK PORTAL / DEMO</span>
+                          <span>NOT AN OFFICIAL SHRINE BOARD BOOKING</span>
+                        </div>
+
+                        {/* Card Header */}
                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                           <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ fontWeight: 800, color: '#58111A', fontSize: '1.05rem', letterSpacing: '0.02em' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <span style={{ fontWeight: 800, color: '#58111A', fontSize: '1.15rem', letterSpacing: '0.03em' }}>
                                 {b.booking_id}
                               </span>
                               <span style={{ fontSize: '0.72rem', background: '#C6F6D5', color: '#22543D', padding: '2px 8px', borderRadius: '999px', fontWeight: 700 }}>
                                 {b.status}
                               </span>
                             </div>
-                            <div style={{ fontSize: '0.76rem', color: '#7D6A5D', marginTop: '3px' }}>
-                              Devotee: <strong>{b.user_name}</strong> • Pilgrims: <strong>{b.pax_count}</strong> • Booked: {dateFormatted}
+                            <div style={{ fontSize: '0.78rem', color: '#4A3B32', marginTop: '4px' }}>
+                              Devotee: <strong>{b.user_name}</strong> • Account: <strong>{emailAccount}</strong> • Pilgrims: <strong>{b.pax_count}</strong>
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: '#7D6A5D', marginTop: '2px' }}>
+                              Booked on: {dateFormatted}
                             </div>
                           </div>
 
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontWeight: 800, color: '#58111A', fontSize: '1.05rem' }}>
+                            <div style={{ fontWeight: 800, color: '#58111A', fontSize: '1.2rem' }}>
                               ₹{Number(b.total_price || 0).toLocaleString('en-IN')}
                             </div>
-                            <div style={{ fontSize: '0.7rem', color: '#2F855A', fontWeight: 600 }}>
-                              Sandbox Paid
+                            <div style={{ fontSize: '0.72rem', color: '#2F855A', fontWeight: 700 }}>
+                              {paymentLabel}
                             </div>
                           </div>
                         </div>
 
-                        <div style={{ background: '#FBF8F3', borderRadius: '8px', padding: '0.6rem 0.8rem', display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '0.8rem', color: '#4A3B32' }}>
-                          <div>📅 <strong>Darshan Date:</strong> {b.slot_date}</div>
-                          <div>🛕 <strong>Category:</strong> {b.category}</div>
-                          {b.slot_time && <div>⏰ <strong>Slot:</strong> {b.slot_time}</div>}
-                          {b.transport_info && <div>🚆 <strong>Transport:</strong> {b.transport_info}</div>}
+                        {/* Particulars Grid */}
+                        <div style={{
+                          background: '#FBF8F3',
+                          border: '1px solid #EFE4D2',
+                          borderRadius: '8px',
+                          padding: '0.75rem 0.9rem',
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+                          gap: '8px 16px',
+                          fontSize: '0.8rem',
+                          color: '#3D2F27',
+                        }}>
+                          <div>📅 <strong>Yatra Date:</strong> {b.slot_date}</div>
+                          <div>🛕 <strong>Darshan Category:</strong> {b.category}</div>
+                          <div>⏰ <strong>Darshan Slot:</strong> {slotTimeDesc}</div>
+                          <div>🗺️ <strong>Route:</strong> {routeText}</div>
+                          <div>🚆 <strong>Transport:</strong> {transportDesc}</div>
+                          <div>🏨 <strong>Stay:</strong> {hotelDesc}</div>
                         </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+                        {/* Actions Row */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
                           <button
                             type="button"
-                            data-testid={`view-pass-btn-${b.booking_id}`}
+                            data-testid={`view-details-btn-${b.booking_id}`}
                             onClick={() => setSelectedPass(b)}
+                            style={{
+                              background: '#FFFDF9',
+                              color: '#58111A',
+                              border: '1.5px solid #C5A059',
+                              borderRadius: '8px',
+                              padding: '0.45rem 0.9rem',
+                              fontSize: '0.82rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                            }}
+                          >
+                            <span>🔍</span>
+                            <span>View Details</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            data-testid={`download-pass-btn-${b.booking_id}`}
+                            onClick={handleDownloadCardPDF}
+                            style={{
+                              background: 'linear-gradient(135deg, #155724 0%, #0d3817 100%)',
+                              color: '#FFFFFF',
+                              border: '1px solid #28a745',
+                              borderRadius: '8px',
+                              padding: '0.45rem 0.95rem',
+                              fontSize: '0.82rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                            }}
+                          >
+                            <span>📥</span>
+                            <span>Download Pass (PDF)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            data-testid={`print-pass-btn-${b.booking_id}`}
+                            onClick={handlePrintCardPass}
                             style={{
                               background: 'linear-gradient(135deg, #58111A 0%, #3D0810 100%)',
                               color: '#FFFFFF',
@@ -345,11 +456,11 @@ export default function SavedTripsModal({
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '6px',
+                              gap: '5px',
                             }}
                           >
                             <span>🖨️</span>
-                            <span>View Demo Pass</span>
+                            <span>Print Pass</span>
                           </button>
                         </div>
                       </div>
@@ -673,44 +784,49 @@ export default function SavedTripsModal({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div style={{ background: 'linear-gradient(135deg, #58111A 0%, #3D0810 100%)', color: '#FFFFFF', padding: '1rem 1.25rem', textAlign: 'center', borderBottom: '2px solid #B8860B' }}>
-              <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: '#E5D2AD', fontWeight: 700, textTransform: 'uppercase' }}>
-                LOCAL MOCK PORTAL / DEMO
+            <div style={{ background: 'linear-gradient(135deg, #58111A 0%, #3D0810 100%)', color: '#FFFFFF', padding: '1.15rem 1.25rem', textAlign: 'center', borderBottom: '2px solid #B8860B' }}>
+              <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: '#E5D2AD', fontWeight: 800, textTransform: 'uppercase' }}>
+                LOCAL MOCK PORTAL / DEMO • NOT AN OFFICIAL SHRINE BOARD BOOKING
               </div>
-              <div style={{ fontFamily: 'var(--font-serif, serif)', fontSize: '1.15rem', fontWeight: 800, marginTop: '2px' }}>
+              <div style={{ fontFamily: 'var(--font-serif, serif)', fontSize: '1.25rem', fontWeight: 800, marginTop: '4px' }}>
                 ✅ Simulated Yatra Booking Confirmation
               </div>
-              <div style={{ fontSize: '0.74rem', color: '#D6C8B2', marginTop: '2px' }}>
+              <div style={{ fontSize: '0.76rem', color: '#D6C8B2', marginTop: '2px' }}>
                 Demo Pilgrim Pass — Generated via Local Browser Automation
               </div>
             </div>
 
             {/* Pass Body */}
-            <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ background: '#FDFBF7', border: '1.5px dashed #B8860B', borderRadius: '10px', padding: '0.85rem', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.72rem', color: '#7D6A5D', textTransform: 'uppercase', fontWeight: 600 }}>Mock Booking Reference</div>
-                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#58111A', letterSpacing: '0.04em', marginTop: '2px' }}>
+                <div style={{ fontSize: '0.72rem', color: '#7D6A5D', textTransform: 'uppercase', fontWeight: 700 }}>Mock Booking Reference</div>
+                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#58111A', letterSpacing: '0.04em', marginTop: '2px' }}>
                   {selectedPass.booking_id}
                 </div>
-                <div style={{ fontSize: '0.7rem', color: '#276749', fontWeight: 700, marginTop: '3px' }}>
-                  STATUS: SIMULATED_CONFIRMED (SANDBOX PAID)
+                <div style={{ fontSize: '0.72rem', color: '#276749', fontWeight: 800, marginTop: '3px' }}>
+                  STATUS: {selectedPass.status} ({selectedPass.payment_status || 'COMPLETED_SANDBOX'} - ₹0 LIVE BANK CHARGE)
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.82rem', background: '#FFFDF9', border: '1px solid #E5D2AD', borderRadius: '10px', padding: '0.85rem' }}>
-                <div><strong>Devotee:</strong> {selectedPass.user_name}</div>
-                <div><strong>Pilgrim Count:</strong> {selectedPass.pax_count}</div>
+                <div><strong>Pilgrim Devotee:</strong> {selectedPass.user_name}</div>
+                <div><strong>Associated Account:</strong> {user?.email || selectedPass.receipt?.email || selectedPass.user_id}</div>
+                <div><strong>Pilgrim Count:</strong> {selectedPass.pax_count} devotee(s)</div>
                 <div><strong>Darshan Date:</strong> {selectedPass.slot_date}</div>
-                <div><strong>Category:</strong> {selectedPass.category}</div>
-                <div><strong>Slot Time:</strong> {selectedPass.slot_time || 'Morning Slot'}</div>
-                <div><strong>Total Amount:</strong> ₹{Number(selectedPass.total_price || 0).toLocaleString('en-IN')}</div>
+                <div><strong>Darshan Category:</strong> {selectedPass.category}</div>
+                <div><strong>Slot Time:</strong> {selectedPass.slot_time || 'Morning Slot (06:00)'}</div>
+                <div><strong>Route / Origin:</strong> {selectedPass.receipt?.origin || 'Delhi'} ➔ Katra</div>
+                <div><strong>Transport:</strong> {selectedPass.transport_info || selectedPass.transport_mode || 'Train (Vande Bharat Express)'}</div>
+                <div><strong>Accommodation:</strong> {selectedPass.hotel_name || 'Devi Darshan Hotel (Katra)'}</div>
+                <div><strong>Simulated Total:</strong> ₹{Number(selectedPass.total_price || 0).toLocaleString('en-IN')}</div>
+                <div style={{ gridColumn: 'span 2' }}><strong>Created Timestamp:</strong> {new Date(selectedPass.created_at).toLocaleString()}</div>
               </div>
 
-              <div style={{ fontSize: '0.72rem', color: '#7D6A5D', textAlign: 'center', fontStyle: 'italic', background: '#FAF7F2', padding: '0.5rem', borderRadius: '6px' }}>
-                Note: This pass is a simulated demonstration record generated by the local mock booking portal for academic pair programming verification. No actual Shrine Board booking occurred.
+              <div style={{ fontSize: '0.72rem', color: '#7D6A5D', textAlign: 'center', fontStyle: 'italic', background: '#FAF7F2', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #E5D2AD' }}>
+                Note: This pass is a simulated demonstration record generated by the local mock booking portal for academic verification. No actual Shrine Board booking occurred.
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '4px' }}>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: '6px' }}>
                 <button
                   type="button"
                   onClick={() => setSelectedPass(null)}
@@ -727,6 +843,37 @@ export default function SavedTripsModal({
                 </button>
                 <button
                   type="button"
+                  data-testid="modal-download-pass-btn"
+                  onClick={() => generatePilgrimPassPDF(selectedPass, {
+                    option: {
+                      transport: { name: selectedPass.transport_info, mode: selectedPass.transport_mode },
+                      slot: { category: selectedPass.category, slot_date: selectedPass.slot_date, slot_time: selectedPass.slot_time }
+                    },
+                    hotel: selectedPass.hotel_name ? { name: selectedPass.hotel_name } : null,
+                    pax: selectedPass.pax_count,
+                    origin: selectedPass.receipt?.origin || 'Delhi',
+                    total_price: selectedPass.total_price,
+                  })}
+                  style={{
+                    background: 'linear-gradient(135deg, #155724 0%, #0d3817 100%)',
+                    color: '#FFFFFF',
+                    border: '1px solid #28a745',
+                    borderRadius: '8px',
+                    padding: '0.45rem 1rem',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                  }}
+                >
+                  <span>📥</span>
+                  <span>Download Pass (PDF)</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="modal-print-pass-btn"
                   onClick={() => window.print()}
                   style={{
                     background: 'linear-gradient(135deg, #58111A 0%, #3D0810 100%)',

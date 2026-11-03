@@ -1,12 +1,44 @@
+# Python cache and byte-compiled files
 __pycache__/
-*.pyc
-data/*_live.csv
-data/bookings.csv
-.env
-.streamlit/secrets.toml
-.venv/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# Virtual Environments
 venv/
+.venv/
+env/
+ENV/
+
+# Local SQLite databases and mutable CSV datasets
 *.db
 data/*.db
-scratch/
+data/*_live.csv
+data/bookings.csv
+
+# Secrets, Credentials, and Environment Files
+.env
+.env.local
+.env.*.local
+*.env
+.streamlit/secrets.toml
+
+# Node & Frontend Build Artifacts
 node_modules/
+**/node_modules/
+dist/
+**/dist/
+.vite/
+
+# Local Scratch, Logs, and Local Test Artifacts
+scratch/
+evidence_audit/
+evidence_redesign/
+*.log
+
+# OS & Editor generated files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

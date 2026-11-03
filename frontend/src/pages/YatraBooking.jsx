@@ -7,6 +7,7 @@ import SightseeingBrowser from '../components/SightseeingBrowser';
 import Authorization from '../components/Authorization';
 import BookingConfirmation from '../components/BookingConfirmation';
 import AIChat from '../components/AIChat';
+import AuthModal from '../components/AuthModal';
 import {
   searchYatra,
   getAccommodation,
@@ -14,6 +15,9 @@ import {
   generateItinerary,
   authorizePlan,
   confirmBooking,
+  getAuthMe,
+  saveBooking,
+  setAuthToken,
 } from '../services/api';
 
 const STEPS = [
@@ -33,7 +37,30 @@ const isOptionEqual = (a, b) => {
   return trA.operator === trB.operator && trA.departure_time === trB.departure_time && trA.mode === trB.mode;
 };
 
-export default function YatraBooking({ initialSearchParams = null, onReturnHome }) {
+export default function YatraBooking({ 
+  initialSearchParams = null, 
+  onReturnHome,
+  currentUser: propUser = null,
+  onRequireAuth: propOnRequireAuth = null,
+}) {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  const activeUser = propUser || currentUser;
+
+  useEffect(() => {
+    if (propUser) return;
+    let isMounted = true;
+    getAuthMe()
+      .then((res) => {
+        if (isMounted && res.authenticated && res.user) {
+          setCurrentUser(res.user);
+        }
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, [propUser]);
+
   // Planning Mode: null (Choice Screen) | 'form' (Guided Intake) | 'chat' (AI Companion)
   const [planningMode, setPlanningMode] = useState(() => {
     if (initialSearchParams?.planningMode) return initialSearchParams.planningMode;
@@ -1002,34 +1029,52 @@ export default function YatraBooking({ initialSearchParams = null, onReturnHome 
           {(() => {
             const getNormalizedStep = (step) => {
               if (step === 1) return 1;
-              if (step === 2 || String(step).startsWith('edit-') || step === 'transport' || step === 'accommodation' || step === 'sightseeing' || step === 4 || step === 5) return 2;
+              if (step === 2 || String(step).startsWith('edit-') || step === 'transport' || step === 'accommodation' || step === 'sightseeing') return 2;
               if (step === 3 || step === 6) return 3;
-              if (step === 4 || step === 7) return 4;
+              if (step === 4 || step === 7 || step === 'confirmation') return 4;
               return 1;
             };
             const normStep = getNormalizedStep(currentStep);
 
             return (
-              <div className="stepper-container">
+              <div className="stepper-container" data-testid="main-4-step-stepper">
                 {STEPS.map((step) => {
-                  const isCompleted = normStep > step.id;
+                  let isCompleted = false;
+                  if (step.id === 1) {
+                    isCompleted = (availableOptions.length > 0 && normStep > 1) || normStep > 1;
+                  } else if (step.id === 2) {
+                    isCompleted = normStep > 2;
+                  } else if (step.id === 3) {
+                    isCompleted = normStep > 3 || Boolean(confirmationData?.booking_id);
+                  } else if (step.id === 4) {
+                    isCompleted = Boolean(confirmationData?.booking_id) && normStep === 4;
+                  }
+
                   const isActive = normStep === step.id;
-                  const isClickable = step.id === 1 || (availableOptions.length > 0 && step.id <= 3) || isCompleted;
+                  const isClickable = (
+                    (step.id === 1) ||
+                    (step.id === 2 && availableOptions.length > 0) ||
+                    (step.id === 3 && availableOptions.length > 0) ||
+                    (step.id === 4 && Boolean(confirmationData?.booking_id))
+                  );
+
                   return (
                     <React.Fragment key={step.id}>
                       <div
                         className={`step-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                        data-testid={`step-pill-${step.id}`}
+                        data-step-item={`main-step-${step.id}-item`}
                         onClick={() => {
                           if (isClickable) {
                             if (step.id === 1) setCurrentStep(1);
                             else if (step.id === 2) setCurrentStep(2);
                             else if (step.id === 3) setCurrentStep(3);
-                            else if (step.id === 4 && confirmationData) setCurrentStep(4);
+                            else if (step.id === 4 && confirmationData?.booking_id) setCurrentStep(4);
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                           }
                         }}
-                        style={{ cursor: isClickable ? 'pointer' : 'default' }}
-                        title={isClickable ? `Jump to ${step.label}` : 'Complete search to unlock'}
+                        style={{ cursor: isClickable ? 'pointer' : 'not-allowed', opacity: !isClickable && step.id === 4 ? 0.6 : 1 }}
+                        title={isClickable ? `Navigate to ${step.label}` : (step.id === 4 ? 'Complete booking verification to unlock confirmation' : 'Complete search to unlock')}
                       >
                         <div className="step-circle">
                           {isCompleted ? '✓' : step.id}
@@ -1372,6 +1417,52 @@ export default function YatraBooking({ initialSearchParams = null, onReturnHome 
                 tripRequest: tripRequest,
                 itineraryDays: itineraryDays,
               }}
+              currentUser={activeUser}
+              onRequireAuth={() => {
+                if (propOnRequireAuth) {
+                  propOnRequireAuth();
+                } else {
+                  setShowAuthModal(true);
+                }
+              }}
+              onNavigateToConfirmation={(confirmedResult) => {
+                setConfirmationData(confirmedResult);
+                setCurrentStep(4);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (activeUser && confirmedResult?.booking_id) {
+                  const bPrice = confirmedResult.total_price || selectedOption?.total_price || 0;
+                  saveBooking({
+                    booking_id: confirmedResult.booking_id,
+                    pax_count: tripRequest?.pax || 1,
+                    slot_date: selectedOption?.slot?.slot_date || tripRequest?.start_date || '2026-10-20',
+                    category: selectedOption?.slot?.category || 'Normal Darshan',
+                    slot_time: selectedOption?.slot?.slot_time || 'Morning (06:00)',
+                    transport_mode: selectedOption?.transport?.mode || 'Train',
+                    transport_info: selectedOption?.transport?.name || `${selectedOption?.transport?.mode || 'Train'} from ${tripRequest?.origin || 'Delhi'}`,
+                    hotel_name: selectedHotel?.name || 'Devi Darshan Hotel (Katra)',
+                    total_price: bPrice,
+                    session_id: sessionId,
+                    plan_version: planVersion || 1,
+                    receipt: {
+                      booking_id: confirmedResult.booking_id,
+                      user_name: activeUser?.name || activeUser?.email || 'Pilgrim Devotee',
+                      email: activeUser?.email,
+                      pax_count: tripRequest?.pax || 1,
+                      origin: tripRequest?.origin || 'Delhi',
+                      destination: 'Katra (Shri Mata Vaishno Devi)',
+                      slot_date: selectedOption?.slot?.slot_date || tripRequest?.start_date || '2026-10-20',
+                      category: selectedOption?.slot?.category || 'Normal Darshan',
+                      slot_time: selectedOption?.slot?.slot_time || 'Morning (06:00)',
+                      transport_info: selectedOption?.transport?.name || `${selectedOption?.transport?.mode || 'Train'} from ${tripRequest?.origin || 'Delhi'}`,
+                      hotel_name: selectedHotel?.name || 'Devi Darshan Hotel (Katra)',
+                      total_price: bPrice,
+                      confirmed_at: new Date().toISOString(),
+                      portal_label: 'LOCAL MOCK PORTAL / DEMO',
+                      disclaimer: 'NOT AN OFFICIAL SHRINE BOARD BOOKING',
+                    },
+                  }).catch((err) => console.warn('Account sync notice:', err));
+                }
+              }}
               onConfirmBooking={handleConfirmBooking}
               onBack={() => { setCurrentStep(2); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               onNavigateToStep={(stepId) => {
@@ -1393,9 +1484,9 @@ export default function YatraBooking({ initialSearchParams = null, onReturnHome 
           )}
 
           {/* ========================================================= */}
-          {/* STEP 4: BOOKING CONFIRMATION                              */}
+          {/* STEP 4: BOOKING CONFIRMATION & DOWNLOAD PASS              */}
           {/* ========================================================= */}
-          {(currentStep === 4 || currentStep === 7) && (
+          {(currentStep === 4 || currentStep === 7 || currentStep === 'confirmation') && (
             <BookingConfirmation
               confirmationData={confirmationData}
               bookingSummary={{
@@ -1404,12 +1495,29 @@ export default function YatraBooking({ initialSearchParams = null, onReturnHome 
                 hotel: selectedHotel,
                 hotelNights: Math.max(1, (tripRequest?.duration_days || 4) - 1),
                 origin: tripRequest?.origin || 'Delhi',
+                tripRequest: tripRequest,
               }}
               onReturnHome={onReturnHome}
+              onStartNewBooking={() => {
+                setConfirmationData(null);
+                setCurrentStep(1);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
             />
           )}
         </div>
       )}
+
+      {/* Embedded AuthModal for YatraBooking */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onAuthSuccess={(user, token) => {
+          setCurrentUser(user);
+          if (token) setAuthToken(token);
+          setShowAuthModal(false);
+        }}
+      />
     </div>
   );
 }
